@@ -1,18 +1,28 @@
 #!/bin/bash
 
-if [ $# -gt 3 ]; then
-  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs"
+if [ $# -gt 4 ]; then
+  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
   exit 1
 fi
 
 if [ $# -lt 3 ]; then
-  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs"
+  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
   exit 1
 fi
 
 BASEDIRECTORY=$1
 NMAINJOBS=$2
 NSUBJOBS=$3
+MIXEDEVENTS=$4:-NO
+if [ $MIXEDEVENTS != "me" ] && [ $MIXEDEVENTS != "NO" ]
+then
+  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
+  exit 1
+fi
+if [ $MIXEDEVENTS == "me" ]
+  MIXEDEVENTS=YES
+fi
+
 PRODUCTIONDIRECTORY=OUT`date +%Y%m%d%H%M`
 ALICESWREVISION="PENDING"
 
@@ -55,7 +65,7 @@ do
   cp $CONFIGURATIONFILE $WORKINGDIRECTORY/
 
   # submit the job array
-  cmd="sbatch -J batch__PythiaCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --time=03:00:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runPythiaCorrelations.sh"
+  cmd="sbatch -J batch__PythiaCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --time=03:00:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runPythiaCorrelations.sh $MIXEDEVENTS"
   ARRAYJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
   echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
   echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log

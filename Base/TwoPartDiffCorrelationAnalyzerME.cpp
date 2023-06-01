@@ -22,8 +22,8 @@
 // CTOR
 //////////////////////////////////////////////////////////////
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
-TwoPartDiffCorrelationAnalyzerME<r>::TwoPartDiffCorrelationAnalyzerME(const TString& name, TaskConfiguration* configuration, Event* event,
-                                                                      EventFilter* ef, std::vector<ParticleFilter<r>*> particleFilters)
+TwoPartDiffCorrelationAnalyzerME<r>::TwoPartDiffCorrelationAnalyzerME(const TString& name, AnalysisConfiguration* configuration, Event* event,
+                                                                  EventFilter* ef, std::vector<ParticleFilter<r>*> particleFilters)
   : Task(name, configuration, event),
     eventFilter(ef),
     eventPool(EVENTPOOLSIZE, PARTICLESPEREVENT),
@@ -229,26 +229,27 @@ void TwoPartDiffCorrelationAnalyzerME<r>::loadHistograms(TFile* inputFile)
 // load the base histograms from given file
 //////////////////////////////////////////////////////////////
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
-void TwoPartDiffCorrelationAnalyzerME<r>::loadBaseHistograms(TFile* inputFile)
+void TwoPartDiffCorrelationAnalyzerME<r>::loadBaseHistograms(TDirectory* dir)
 {
+  dir->cd();
   if (reportDebug())
     cout << "TwoPartDiffCorrelationAnalyzerME::loadHistograms(...) Starting." << endl;
 
   /* first load the number of events as from the  cumulated parameter */
-  TParameter<Long64_t>* par = (TParameter<Long64_t>*)inputFile->Get("NoOfEvents");
+  TParameter<Long64_t>* par = (TParameter<Long64_t>*)dir->Get("NoOfEvents");
   eventsProcessed = par->GetVal();
   delete par;
   AnalysisConfiguration* analysisConfiguration = (AnalysisConfiguration*)getTaskConfiguration();
   LogLevel debugLevel = getReportLevel();
 
   for (uint i = 0; i < partNames.size(); ++i) {
-    particle_Histos[i] = new ParticleHistos(inputFile, partNames[i], analysisConfiguration, debugLevel);
+    particle_Histos[i] = new ParticleHistos(dir, partNames[i], analysisConfiguration, debugLevel);
   }
   if (analysisConfiguration->fillPairs) {
     for (uint i = 0; i < partNames.size(); ++i) {
       for (uint j = 0; j < partNames.size(); ++j) {
-        pairs_Histos[i][j] = new ParticlePairDerivedDiffHistos(inputFile, partNames[i] + partNames[j], analysisConfiguration, debugLevel);
-        pairs_Histos_me[i][j] = new ParticlePairDerivedDiffHistos(inputFile, partNames[i] + partNames[j] + "_me", analysisConfiguration, debugLevel);
+        pairs_Histos[i][j] = new ParticlePairDerivedDiffHistos(dir, partNames[i] + partNames[j], analysisConfiguration, debugLevel);
+        pairs_Histos_me[i][j] = new ParticlePairDerivedDiffHistos(dir, partNames[i] + partNames[j] + "_me", analysisConfiguration, debugLevel);
       }
     }
     if (analysisConfiguration->calculateDerivedHistograms) {
@@ -272,7 +273,7 @@ void TwoPartDiffCorrelationAnalyzerME<r>::loadBaseHistograms(TFile* inputFile)
           pairs_BFHistos_me[i][j] = new ParticlePairBalanceFunctionDiffHistos(TString::Format("%.2s%.2s_me", partNames[2 * i].Data(), partNames[2 * j].Data()), analysisConfiguration, debugLevel);
         }
       }
-   }
+    }
   }
   if (reportDebug())
     cout << "TwoPartDiffCorrelationAnalyzerME::loadHistograms(...) Completed." << endl;
@@ -304,8 +305,13 @@ void TwoPartDiffCorrelationAnalyzerME<r>::saveHistograms(TDirectory* dir)
     return;
   }
 
+  /* now save the event histograms */
   if (reportDebug())
     cout << "TwoPartDiffCorrelationAnalyzerME::saveHistograms(...) saving singles." << endl;
+  event->saveHistograms(dir);
+
+  if (reportDebug())
+    cout << "TwoPartDiffCorrelationAnalyzer::saveHistograms(...) saving singles." << endl;
 
   for (uint i = 0; i < partNames.size(); ++i) {
     particle_Histos[i]->saveHistograms(dir);

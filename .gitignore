@@ -21,6 +21,7 @@ Tests
 *.so
 *.pcm
 *.log
+*.root
 
 # local directories and files
 Home

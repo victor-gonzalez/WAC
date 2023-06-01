@@ -39,7 +39,7 @@ class TwoPartDiffCorrelationAnalyzerME : public Task
   // CTOR
   //////////////////////////////////////////////////////////////
   TwoPartDiffCorrelationAnalyzerME(const TString& name,
-                                   TaskConfiguration* configuration,
+                                   AnalysisConfiguration* configuration,
                                    Event* event,
                                    EventFilter* eventFilter,
                                    std::vector<ParticleFilter<r>*> particleFilters);
@@ -47,7 +47,7 @@ class TwoPartDiffCorrelationAnalyzerME : public Task
   virtual void execute();
   virtual void createHistograms();
   virtual void loadHistograms(TFile* inputFile);
-  virtual void loadBaseHistograms(TFile* inputFile);
+  virtual void loadBaseHistograms(TDirectory* dir);
   virtual void saveHistograms(TDirectory* dir);
   virtual void addHistogramsToExtList(TList* list, bool all = false);
   virtual void scaleHistograms(double factor);

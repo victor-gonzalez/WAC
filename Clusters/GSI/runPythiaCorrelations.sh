@@ -1,5 +1,7 @@
 #!/bin/bash
 
+MIXEDEVENTS=$1
+
 # no more core files
 ulimit -c 0
 echo ulimit `ulimit -c`
@@ -32,5 +34,10 @@ SEED=$(( (SLURM_ARRAY_TASK_ID + SLURM_ARRAY_JOB_ID*1000) % 900000000 ))
 echo "The seed is $SEED"
 
 # Execute application code
-RunPythiaSimulationTwoParticlesDiff $TASKIX $SEED
+if [ $MIXEDEVENTS == "YES" ]
+then
+  RunPythiaSimulationTwoParticlesDiffME $TASKIX $SEED
+else
+  RunPythiaSimulationTwoParticlesDiff $TASKIX $SEED
+fi
 
