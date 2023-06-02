@@ -13,13 +13,14 @@ fi
 BASEDIRECTORY=$1
 NMAINJOBS=$2
 NSUBJOBS=$3
-MIXEDEVENTS=$4:-NO
+MIXEDEVENTS=${4:-NO}
 if [ $MIXEDEVENTS != "me" ] && [ $MIXEDEVENTS != "NO" ]
 then
   echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
   exit 1
 fi
 if [ $MIXEDEVENTS == "me" ]
+then
   MIXEDEVENTS=YES
 fi
 
