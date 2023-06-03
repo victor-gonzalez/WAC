@@ -165,8 +165,9 @@ void ParticlePairDiffHistos::fill(ParticleType1& particle1, ParticleType2& parti
   float deltaphi = getDeltaPhi<r>(particle1, particle2);
 
   if constexpr (r == AnalysisConfiguration::kRapidity) {
-    h_n2_DyDphi->AddBinContent(globalyetabinno, weight1 * weight2);
+    h_n2_ptPt->Fill(particle1.pt, particle2.pt, weight1 * weight2);
     p_n2_DyDphi->Fill(deltayeta, deltaphi, weight1 * weight2);
+    h_n2_DyDphi->AddBinContent(globalyetabinno, weight1 * weight2);
     h_ptpt_DyDphi->AddBinContent(globalyetabinno, weight1 * particle1.pt * weight2 * particle2.pt);
     h_dptdpt_DyDphi->AddBinContent(globalyetabinno, (weight1 * particle1.pt - pTavg1) * (weight2 * particle2.pt - pTavg2));
     h_n2_DyDphi->SetEntries(h_n2_ptPt->GetEntries());
