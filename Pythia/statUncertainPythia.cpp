@@ -68,13 +68,13 @@ TFile* getSampleFile(PythiaAnalysisConfiguration* conf, int irap, int isample)
   return f;
 }
 
-TDirectory* getSampleDirectory(PythiaAnalysisConfiguration* conf, TFile* file, int irap, const char* cname)
+TDirectory* getSampleDirectory(PythiaAnalysisConfiguration* conf, TFile* file, TString& taskname, int irap, const char* cname)
 {
   TDirectory* dir = nullptr;
 
   std::string dirname = TString::Format("%s%s_%s",
                                         TString::Format(conf->outputfname.c_str(), int(conf->abs_y[irap] * 10)).Data(),
-                                        TString::Format(conf->taskname.c_str(), "Pairs").Data(),
+                                        taskname.Data(),
                                         cname)
                           .Data();
 
@@ -213,7 +213,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   else
     eventanalyzer->setReportLevel(MessageLogger::Info);
 
-  TDirectory* mydir = getSampleDirectory(conf, samplefile, irap, cname);
+  TDirectory* mydir = getSampleDirectory(conf, samplefile, taskName, irap, cname);
   if (mydir == nullptr)
     return nullptr;
 
