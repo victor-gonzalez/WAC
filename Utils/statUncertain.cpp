@@ -164,12 +164,12 @@ TList* extractSampleResults(Option_t* opt, AnalysisConfiguration* ac, int icent,
   TH1::AddDirectory(kFALSE);
 
   std::vector<ParticleFilter<LONGITUDINAL>*> particleFilters;
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Pion, ParticleFilter<LONGITUDINAL>::Positive, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Pion, ParticleFilter<LONGITUDINAL>::Negative, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Kaon, ParticleFilter<LONGITUDINAL>::Positive, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Kaon, ParticleFilter<LONGITUDINAL>::Negative, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Proton, ParticleFilter<LONGITUDINAL>::Positive, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
-  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Proton, ParticleFilter<LONGITUDINAL>::Negative, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Pion, ParticleFilter<LONGITUDINAL>::Positive, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Pion, ParticleFilter<LONGITUDINAL>::Negative, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Kaon, ParticleFilter<LONGITUDINAL>::Positive, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Kaon, ParticleFilter<LONGITUDINAL>::Negative, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Proton, ParticleFilter<LONGITUDINAL>::Positive, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
+  particleFilters.push_back(new ParticleFilter<LONGITUDINAL>(ParticleFilter<LONGITUDINAL>::Proton, ParticleFilter<LONGITUDINAL>::Negative, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt, ac->max_pt, ac->min_y, ac->max_y));
 
   EventFilter* eventFilter = new EventFilter(EventFilter::MinBias, 0, 0);
 

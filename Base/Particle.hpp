@@ -24,6 +24,10 @@ class Particle
   Particle(const Particle& other);
   Particle& operator=(const Particle& other);
   void printProperties(ostream& output);
+  int getFeedDownCode() { return feedDownCode; }
+  int getOriginalIx() { return originalix; }
+  void setFeedDownCode(int f) { feedDownCode = f; }
+  void setOriginalIx(int i) { originalix = i; }
   void setPxPyPzE(double p_x, double p_y, double p_z, double p_e);
   void setPidPxPyPzE(long pid, long charge, double p_x, double p_y, double p_z, double p_e);
   void setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta);
@@ -52,6 +56,8 @@ class Particle
   float phi;
   int ixYEtaPhi;
   int ixID; ///< the index of the filter which accepted the particle (kind of PID index)
+  int feedDownCode; ///< the resonance mother id as being part of the feed down
+  int originalix;   ///< the original index in the particle tree for debugging purposes
 
   static int factorySize;
   static Factory<Particle>* factory;

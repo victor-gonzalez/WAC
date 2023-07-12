@@ -29,7 +29,9 @@ Particle::Particle()
     eta(0.0),
     phi(0.0),
     ixYEtaPhi(-1),
-    ixID(-1)
+    ixID(-1),
+    feedDownCode(-1),
+    originalix(-1)
 {
   // no op
 }
@@ -58,6 +60,8 @@ Particle::Particle(const Particle& other)
     phi = other.phi;
     ixYEtaPhi = other.ixYEtaPhi;
     ixID = other.ixID;
+    feedDownCode = other.feedDownCode;
+    originalix = other.originalix;
   }
 }
 
@@ -76,6 +80,8 @@ Particle& Particle::operator=(const Particle& other)
     phi = other.phi;
     ixYEtaPhi = other.ixYEtaPhi;
     ixID = other.ixID;
+    feedDownCode = other.feedDownCode;
+    originalix = other.originalix;
   }
   return *this;
 }
@@ -92,17 +98,19 @@ void Particle::printProperties(ostream& output)
   } else {
     mass = sqrt(massSq);
   }
-  output << "     PID: " << pid << endl;
-  output << "  charge: " << charge << endl;
-  output << "    mass: " << mass << endl;
-  output << "      px: " << px << endl;
-  output << "      py: " << py << endl;
-  output << "      pt: " << pt << endl;
-  output << "      pz: " << pz << endl;
-  output << "       e: " << e << endl;
-  output << "       y: " << y << endl;
-  output << "     eta: " << eta << endl;
-  output << "     phi: " << phi << endl;
+  output << "            PID: " << pid << endl;
+  output << "         charge: " << charge << endl;
+  output << "           mass: " << mass << endl;
+  output << "             px: " << px << endl;
+  output << "             py: " << py << endl;
+  output << "             pt: " << pt << endl;
+  output << "             pz: " << pz << endl;
+  output << "              e: " << e << endl;
+  output << "              y: " << y << endl;
+  output << "            eta: " << eta << endl;
+  output << "            phi: " << phi << endl;
+  output << " feed down code: " << feedDownCode << endl;
+  output << "    original ix: " << originalix << endl;
 }
 
 void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
@@ -127,6 +135,8 @@ void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
     y = 0.5 * log(plus / minus);
   ixYEtaPhi = -1;
   ixID = -1;
+  feedDownCode = -1;
+  originalix = -1;
 }
 
 void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y, double p_z, double p_e)
@@ -153,6 +163,8 @@ void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y
     y = 0.5 * log(plus / minus);
   ixYEtaPhi = -1;
   ixID = -1;
+  feedDownCode = -1;
+  originalix = -1;
 }
 
 void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta)
@@ -169,6 +181,8 @@ void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, doub
   e = 1.0 / TMath::TanH(_y);
   ixYEtaPhi = -1;
   ixID = -1;
+  feedDownCode = -1;
+  originalix = -1;
 }
 
 void Particle::boost(double ax, double ay, double az)

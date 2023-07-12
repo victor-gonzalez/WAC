@@ -45,9 +45,12 @@ class ParticleFilter
                           Proton,
                           Lambda,
                           ALambda };
+  enum FeedDownRejection { None,
+                           AllResonances };
 
   ParticleFilter(SpeciesSelection pidRequested,
                  ChargeSelection chargeRequested,
+                 FeedDownRejection feedDownRejection,
                  double minPt,
                  double maxPt,
                  double minRapPseudo,
@@ -65,12 +68,13 @@ class ParticleFilter
 
   SpeciesSelection pidRequested;
   ChargeSelection chargeRequested;
+  FeedDownRejection feedDownRejection;
   double min_pt;
   double max_pt;
   double min_rappseudo;
   double max_rappseudo;
 
-  ClassDef(ParticleFilter, 2)
+  ClassDef(ParticleFilter, 3)
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -146,6 +150,19 @@ inline bool ParticleFilter<r>::accept(Particle& particle)
       break;
   }
 
+  if (!accepting)
+    return false;
+  switch (feedDownRejection) {
+    case None:
+      accepting = true;
+      break;
+    case AllResonances:
+      if (particle.feedDownCode != 0) {
+        accepting = false;
+      }
+    default:
+      break;
+  }
   if (!accepting)
     return false;
 

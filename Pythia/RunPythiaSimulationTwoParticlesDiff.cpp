@@ -130,6 +130,7 @@ int main(int argc, char* argv[])
     if (conf->inrapidity) {
       ParticleFilter<AnalysisConfiguration::kRapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::AllSpecies,
                                                                                                                                  ParticleFilter<AnalysisConfiguration::kRapidity>::AllCharges,
+                                                                                                                                 ParticleFilter<AnalysisConfiguration::kRapidity>::None,
                                                                                                                                  min_pt, max_pt,
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
@@ -198,9 +199,6 @@ int main(int argc, char* argv[])
       return 0;
     }
 
-    /* the pairs taskname */
-    TString taskName = TString::Format(conf->taskname.c_str(), "Pairs");
-
     /* event selection at the analysis task level */
     for (auto& ef : conf->teventfilter) {
       EventFilter* eventFilter = nullptr;
@@ -212,55 +210,60 @@ int main(int argc, char* argv[])
         sscanf(ef.c_str(), "%f-%f", &min, &max);
         eventFilter = new EventFilter(EventFilter::Centrality, min, max);
       }
-      /* for having the balance function correctly extracted the particle filters have to follow certain order */
-      /* - charged particle should come always first                                                           */
-      /* - particles of the same species, the positive has to come first and the negative immediately after    */
-      /* - after the charged particles the might come any number of neutral                                    */
-      /* - the balance function produced for neutrals will not have any sense                                  */
-      std::vector<ParticleFilter<AnalysisConfiguration::kRapidity>*> particleFilters;
-      if (conf->inrapidity) {
-        for (auto& part : conf->tpairs) {
-          auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, ac);
-          if (filter != nullptr) {
-            particleFilters.push_back(filter);
-          } else {
-            return 0;
-          }
-        }
-      } else {
-        Error("main", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
-        return 0;
-      }
-
-      /* the two-particle analyzer */
-      if (conf->inrapidity) {
-        analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzer<AnalysisConfiguration::kRapidity>(taskName, ac, event, eventFilter, particleFilters);
-      } else {
-        Error("main", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
-        return 0;
-      }
-      analysisTasks[iTask - 1]->reportLevel = repLevel;
-
-      /* single particle analysis filters and task if any */
-      if (conf->tsingles.size() > 0) {
-        int nParticleFilters = 0;
+      for (auto& fd : conf->tfeeddownrej) {
+        /* for having the balance function correctly extracted the particle filters have to follow certain order */
+        /* - charged particle should come always first                                                           */
+        /* - particles of the same species, the positive has to come first and the negative immediately after    */
+        /* - after the charged particles the might come any number of neutral                                    */
+        /* - the balance function produced for neutrals will not have any sense                                  */
+        std::vector<ParticleFilter<AnalysisConfiguration::kRapidity>*> particleFilters;
         if (conf->inrapidity) {
-          TString singlesTtaskName = TString::Format(conf->taskname.c_str(), "Singles", int(y * 10)).Data();
-          ParticleFilter<AnalysisConfiguration::kRapidity>** singleParticleFilters = new ParticleFilter<AnalysisConfiguration::kRapidity>*[50];
-          for (auto& part : conf->tsingles) {
-            auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, ac);
+          for (auto& part : conf->tpairs) {
+            auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, fd, ac);
             if (filter != nullptr) {
-              singleParticleFilters[nParticleFilters++] = filter;
+              particleFilters.push_back(filter);
             } else {
               return 0;
             }
           }
-          analysisTasks[iTask++] = new ParticleAnalyzer<AnalysisConfiguration::kRapidity>(singlesTtaskName, ac, event, eventFilter, nParticleFilters, singleParticleFilters);
+        } else {
+          Error("main", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
+          return 0;
+        }
+
+        /* the pairs taskname */
+        TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsFDRej%s", fd.c_str()).Data());
+
+        /* the two-particle analyzer */
+        if (conf->inrapidity) {
+          analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzer<AnalysisConfiguration::kRapidity>(taskName, ac, event, eventFilter, particleFilters);
         } else {
           Error("main", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
           return 0;
         }
         analysisTasks[iTask - 1]->reportLevel = repLevel;
+
+        /* single particle analysis filters and task if any */
+        if (conf->tsingles.size() > 0) {
+          int nParticleFilters = 0;
+          if (conf->inrapidity) {
+            TString singlesTtaskName = TString::Format(conf->taskname.c_str(), TString::Format("SinglesFDRej%s", fd.c_str()).Data());
+            ParticleFilter<AnalysisConfiguration::kRapidity>** singleParticleFilters = new ParticleFilter<AnalysisConfiguration::kRapidity>*[50];
+            for (auto& part : conf->tsingles) {
+              auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, fd, ac);
+              if (filter != nullptr) {
+                singleParticleFilters[nParticleFilters++] = filter;
+              } else {
+                return 0;
+              }
+            }
+            analysisTasks[iTask++] = new ParticleAnalyzer<AnalysisConfiguration::kRapidity>(singlesTtaskName, ac, event, eventFilter, nParticleFilters, singleParticleFilters);
+          } else {
+            Error("main", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
+            return 0;
+          }
+          analysisTasks[iTask - 1]->reportLevel = repLevel;
+        }
       }
     }
   }

@@ -17,6 +17,8 @@
 #include "PythiaEventGenerator.hpp"
 #include "PythiaConfiguration.hpp"
 
+#include "PythiaResonances.cpp"
+
 templateClassImp(PythiaEventGenerator);
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
@@ -51,6 +53,8 @@ void PythiaEventGenerator<r>::initialize()
 
   nMax = 10000;
   particles = new TClonesArray("TParticle", nMax);
+  feedDownCodes.Set(nMax);
+  initializeToConsiderResonances();
   pythia8 = new TPythia8();
 
   PythiaConfiguration* pc = (PythiaConfiguration*)getTaskConfiguration();
@@ -61,6 +65,58 @@ void PythiaEventGenerator<r>::initialize()
   // pythia8->Initialize(2212 /* p */, 2212 /* p */, 14000. /* GeV */);
   if (reportDebug())
     cout << "PythiaEventGenerator::initialize() Completed" << endl;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+int PythiaEventGenerator<r>::loadParticles()
+{
+  particles->Clear();
+  TClonesArray& a = *particles;
+  auto _pythia = pythia8->Pythia8();
+  int nparts = _pythia->event.size();
+  int nloadedparts = 0;
+
+  if (feedDownCodes.GetSize() < nparts) {
+    feedDownCodes.Set(2 * nparts);
+  }
+  feedDownCodes.Reset(0);
+
+  for (int i = 0; i < nparts; ++i) {
+    if (_pythia->event[i].id() == 90) {
+      continue;
+    }
+    int apdg = abs(_pythia->event[i].id());
+    if (apdg < nNoOfResonanceIndexes && toConsiderResonances[apdg] == 1) {
+      feedDownCodes[i] = apdg;
+    } else {
+      int mother1ix = _pythia->event[i].mother1();
+      int mother2ix = _pythia->event[i].mother2();
+      if (mother1ix > 0) {
+        feedDownCodes[i] = feedDownCodes[mother1ix];
+      } else if (mother2ix > 0) {
+        feedDownCodes[i] = feedDownCodes[mother2ix];
+      }
+    }
+    if (_pythia->event[i].isFinal()) {
+      new (a[nloadedparts]) TParticle(
+        _pythia->event[i].id(),
+        _pythia->event[i].isFinal(),
+        feedDownCodes[i],           /* _pythia->event[i].mother1() + ioff, once we use only final particles the hierarchy tree is broken */
+        i,                          /* _pythia->event[i].mother2() + ioff, once we use only final particles the hierarchy tree is broken */
+        0,                          /* _pythia->event[i].daughter1() + ioff, once we use only final particles the hierarchy tree is broken */
+        0,                          /* _pythia->event[i].daughter2() + ioff, once we use only final particles the hierarchy tree is broken */
+        _pythia->event[i].px(),     // [GeV/c]
+        _pythia->event[i].py(),     // [GeV/c]
+        _pythia->event[i].pz(),     // [GeV/c]
+        _pythia->event[i].e(),      // [GeV]
+        _pythia->event[i].xProd(),  // [mm]
+        _pythia->event[i].yProd(),  // [mm]
+        _pythia->event[i].zProd(),  // [mm]
+        _pythia->event[i].tProd()); // [mm/c]
+      nloadedparts++;
+    }
+  }
+  return nloadedparts;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,11 +149,11 @@ void PythiaEventGenerator<r>::execute()
   if (reportDebug())
     pythia8->EventListing();
   if (reportDebug())
-    cout << "PythiaEventGenerator::execute() Calling pythia8->ImportParticles()" << endl;
+    cout << "PythiaEventGenerator::execute() Calling pythia8->loadParticles()" << endl;
 
-  nparts = pythia8->ImportParticles(particles, "Final");
+  nparts = loadParticles();
   if (reportDebug()) {
-    cout << "PythiaEventGenerator::execute() pythia8->ImportParticles() completed" << endl;
+    cout << "PythiaEventGenerator::execute() pythia8->loadParticles() completed" << endl;
     cout << "PythiaEventGenerator::execute() with nparts:" << nparts << endl;
   }
   if (nparts > nMax) {
@@ -134,6 +190,8 @@ void PythiaEventGenerator<r>::execute()
     p_z = part.Pz();
     p_e = part.Energy();
     aParticle.setPidPxPyPzE(pdg, charge, p_x, p_y, p_z, p_e);
+    aParticle.setFeedDownCode(part.GetMother(0));
+    aParticle.setOriginalIx(part.GetMother(1));
 
     /* we count the particle for multiplicity before acceptance  */
     event->addParticleToMultiplicity(aParticle);

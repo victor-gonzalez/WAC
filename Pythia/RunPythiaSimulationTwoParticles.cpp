@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
   EventFilter* eventFilterGen = new EventFilter(EventFilter::MinBias, 0.0, 0.0);
   ParticleFilter<AnalysisConfiguration::kRapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::Hadron,
                                                                                                                              ParticleFilter<AnalysisConfiguration::kRapidity>::Charged,
+                                                                                                                             ParticleFilter<AnalysisConfiguration::kRapidity>::None,
                                                                                                                              0.2, 100.0,
                                                                                                                              -10.0, 10.0);
   PythiaEventGenerator<AnalysisConfiguration::kRapidity>* generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
@@ -104,8 +105,8 @@ int main(int argc, char* argv[])
   EventFilter* eventFilter = new EventFilter(EventFilter::MinBias, 0.0, 0.0);
   int nParticleFilters = 2;
   ParticleFilter<AnalysisConfiguration::kRapidity>** particleFilters = new ParticleFilter<AnalysisConfiguration::kRapidity>*[nParticleFilters];
-  particleFilters[0] = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::Proton, ParticleFilter<AnalysisConfiguration::kRapidity>::Positive, ac->min_pt + 0.001, ac->max_pt, ac->min_y, ac->max_y);
-  particleFilters[1] = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::Proton, ParticleFilter<AnalysisConfiguration::kRapidity>::Negative, ac->min_pt + 0.001, ac->max_pt, ac->min_y, ac->max_y);
+  particleFilters[0] = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::Proton, ParticleFilter<AnalysisConfiguration::kRapidity>::Positive, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt + 0.001, ac->max_pt, ac->min_y, ac->max_y);
+  particleFilters[1] = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::Proton, ParticleFilter<AnalysisConfiguration::kRapidity>::Negative, ParticleFilter<AnalysisConfiguration::kRapidity>::None, ac->min_pt + 0.001, ac->max_pt, ac->min_y, ac->max_y);
 
   int iTask = 0;
   analysisTasks[iTask++] = new TwoPartCorrelationAnalyzer<AnalysisConfiguration::kRapidity>("NarrowPPPM", ac, event, eventFilter, particleFilters[0], particleFilters[1]); // P+ vs P-

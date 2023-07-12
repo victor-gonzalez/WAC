@@ -131,6 +131,7 @@ int main(int argc, char* argv[])
     if (conf->inrapidity) {
       ParticleFilter<AnalysisConfiguration::kRapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kRapidity>(ParticleFilter<AnalysisConfiguration::kRapidity>::AllSpecies,
                                                                                                                                  ParticleFilter<AnalysisConfiguration::kRapidity>::AllCharges,
+                                                                                                                                 ParticleFilter<AnalysisConfiguration::kRapidity>::None,
                                                                                                                                  min_pt, max_pt,
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
@@ -221,7 +222,7 @@ int main(int argc, char* argv[])
       std::vector<ParticleFilter<AnalysisConfiguration::kRapidity>*> particleFilters;
       if (conf->inrapidity) {
         for (auto& part : conf->tpairs) {
-          auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, ac);
+          auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, "none", ac);
           if (filter != nullptr) {
             particleFilters.push_back(filter);
           } else {
@@ -249,7 +250,7 @@ int main(int argc, char* argv[])
           TString singlesTtaskName = TString::Format(conf->taskname.c_str(), "Singles", int(y * 10)).Data();
           ParticleFilter<AnalysisConfiguration::kRapidity>** singleParticleFilters = new ParticleFilter<AnalysisConfiguration::kRapidity>*[50];
           for (auto& part : conf->tsingles) {
-            auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, ac);
+            auto filter = PythiaAnalysisConfiguration::particleFilter<AnalysisConfiguration::kRapidity>(part, "none", ac);
             if (filter != nullptr) {
               singleParticleFilters[nParticleFilters++] = filter;
             } else {

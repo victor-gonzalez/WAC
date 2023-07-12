@@ -48,9 +48,10 @@ class PythiaAnalysisConfiguration : public TObject
   std::vector<std::string> teventfilter = {"MB"};
   std::vector<std::string> tpairs = {"AllP", "AllM", "La", "ALa", "Gam"};
   std::vector<std::string> tsingles = {"AllA"};
+  std::vector<std::string> tfeeddownrej = {"none", "all"};
 
   template <AnalysisConfiguration::RapidityPseudoRapidity r>
-  static ParticleFilter<r>* particleFilter(std::string str, AnalysisConfiguration* ac)
+  static ParticleFilter<r>* particleFilter(std::string str, std::string fdstr, AnalysisConfiguration* ac)
   {
     auto getparticle = [](auto str) {
       if (str == "PiP" || str == "PiM" || str == "PiC" || str == "Pi0" || str == "PiA") {
@@ -86,7 +87,17 @@ class PythiaAnalysisConfiguration : public TObject
         return ParticleFilter<r>::AllCharges;
       }
     };
-    return new ParticleFilter<r>(getparticle(str), getcharge(str), ac->min_pt, ac->max_pt, ac->min_y, ac->max_y);
+    auto getfeeddown = [](auto str) {
+      if (str == "none") {
+        return ParticleFilter<r>::None;
+      } else if (str == "all") {
+        return ParticleFilter<r>::AllResonances;
+      } else {
+        ::Fatal("PythiaAnalysisConfiguration::particleFilter()", "Resonances suppression %s still not supported for analysis. Please fix it!!", str.c_str());
+        return ParticleFilter<r>::None;
+      }
+    };
+    return new ParticleFilter<r>(getparticle(str), getcharge(str), getfeeddown(fdstr), ac->min_pt, ac->max_pt, ac->min_y, ac->max_y);
   }
 
   ClassDef(PythiaAnalysisConfiguration, 2)

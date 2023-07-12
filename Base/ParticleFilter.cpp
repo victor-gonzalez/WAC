@@ -15,9 +15,10 @@
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
 ParticleFilter<r>::ParticleFilter(ParticleFilter::SpeciesSelection pid,
                                   ParticleFilter::ChargeSelection charge,
+                                  ParticleFilter::FeedDownRejection feeddown,
                                   double minPt, double maxPt,
                                   double minRapPseudo, double maxRapPseudo)
-  : pidRequested(pid), chargeRequested(charge), min_pt(minPt), max_pt(maxPt), min_rappseudo(minRapPseudo), max_rappseudo(maxRapPseudo)
+  : pidRequested(pid), chargeRequested(charge), feedDownRejection(feeddown), min_pt(minPt), max_pt(maxPt), min_rappseudo(minRapPseudo), max_rappseudo(maxRapPseudo)
 {
   // no ops
 }
@@ -103,6 +104,7 @@ TString ParticleFilter<r>::getName()
       name += "0";
       break;
   }
+  /* TODO: for the time being we do not incorporate the feed down suppression in the name */
   return name;
 }
 
@@ -172,6 +174,7 @@ TString ParticleFilter<r>::getTitle()
       name += " Neutral";
       break;
   }
+  /* TODO: for the time being we do not incorporate the feed down suppression in the title */
   return name;
 }
 

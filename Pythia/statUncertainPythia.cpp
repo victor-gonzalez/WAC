@@ -163,7 +163,7 @@ TList* extractMeanAndStDevFromSubSets(const TObjArray& listsarray, const TString
 
 TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, std::string evfltr, int isample)
 {
-
+  std::string feeddownrej = "none";
   char* cname = new char[64];
   auto getEvenFilter = [&cname](auto const& evfltr) {
     EventFilter* eventFilter = nullptr;
@@ -187,7 +187,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   std::vector<ParticleFilter<LONGITUDINAL>*> particleFilters;
   if (conf->inrapidity) {
     for (auto& part : conf->tpairs) {
-      auto filter = PythiaAnalysisConfiguration::particleFilter<LONGITUDINAL>(part, ac);
+      auto filter = PythiaAnalysisConfiguration::particleFilter<LONGITUDINAL>(part, feeddownrej, ac);
       if (filter != nullptr) {
         particleFilters.push_back(filter);
       } else {
@@ -205,7 +205,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   Event* event = Event::getEvent();
 
   /* the pairs taskname */
-  TString taskName = TString::Format(conf->taskname.c_str(), "Pairs");
+  TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsFDRej%s", feeddownrej.c_str()).Data());
   TwoPartDiffCorrelationAnalyzer<LONGITUDINAL>* eventanalyzer = new TwoPartDiffCorrelationAnalyzer<LONGITUDINAL>(taskName.Data(), ac, event, eventFilter, particleFilters);
 
   if (!TString(opt).Contains("verb"))

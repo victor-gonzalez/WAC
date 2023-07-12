@@ -10,6 +10,7 @@
 #ifndef WAC_PythiaEventGenerator
 #define WAC_PythiaEventGenerator
 #include "TParticle.h"
+#include "TArray.h"
 #include "TClonesArray.h"
 #include "TPythia8.h"
 #include "Task.hpp"
@@ -31,8 +32,11 @@ class PythiaEventGenerator : public Task
   virtual void reset();
   virtual void execute();
 
+  int loadParticles();
+
   int nMax;                //  = 10000;
   TClonesArray* particles; // = new TClonesArray("TParticle", nMax);
+  TArrayI feedDownCodes;
 
   TPythia8* pythia8; // = new TPythia8();
 
