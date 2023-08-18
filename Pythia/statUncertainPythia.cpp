@@ -49,8 +49,6 @@ const char* corrfname[ncorrpart] = {"P2", "R2", "G2"};
 const int nbf = 8;
 const char* bfnames[nbf] = {"R2BF", "R2BFPratt1bar2", "R2BFPrattbar12", "N2PrattBF", "N2PrattBF1bar2", "N2PrattBFbar12", "PrattBF1bar2", "PrattBFbar12"};
 
-#define LONGITUDINAL AnalysisConfiguration::kRapidity
-
 int nsamples = 10;
 
 TFile* getSampleFile(PythiaAnalysisConfiguration* conf, int irap, int isample)
@@ -161,6 +159,7 @@ TList* extractMeanAndStDevFromSubSets(const TObjArray& listsarray, const TString
   return list;
 }
 
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
 TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, std::string evfltr, int isample)
 {
   std::string feeddownrej = "none";
@@ -184,20 +183,14 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   Bool_t oldstatus = TH1::AddDirectoryStatus();
   TH1::AddDirectory(kFALSE);
 
-  std::vector<ParticleFilter<LONGITUDINAL>*> particleFilters;
-  if (conf->inrapidity) {
-    for (auto& part : conf->tpairs) {
-      auto filter = PythiaAnalysisConfiguration::particleFilter<LONGITUDINAL>(part, feeddownrej, ac);
-      if (filter != nullptr) {
-        particleFilters.push_back(filter);
-      } else {
-        return nullptr;
-      }
+  std::vector<ParticleFilter<r>*> particleFilters;
+  for (auto& part : conf->tpairs) {
+    auto filter = PythiaAnalysisConfiguration::particleFilter<r>(part, feeddownrej, ac);
+    if (filter != nullptr) {
+      particleFilters.push_back(filter);
+    } else {
+      return nullptr;
     }
-  } else {
-    Error("extractSampleResults", "Tasks in pseudorapidity still not supported by the analysis. Please, fix it!!");
-    delete[] cname;
-    return nullptr;
   }
 
   /* event selection at the analysis task level */
@@ -206,7 +199,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
 
   /* the pairs taskname */
   TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsFDRej%s", feeddownrej.c_str()).Data());
-  TwoPartDiffCorrelationAnalyzer<LONGITUDINAL>* eventanalyzer = new TwoPartDiffCorrelationAnalyzer<LONGITUDINAL>(taskName.Data(), ac, event, eventFilter, particleFilters);
+  TwoPartDiffCorrelationAnalyzer<r>* eventanalyzer = new TwoPartDiffCorrelationAnalyzer<r>(taskName.Data(), ac, event, eventFilter, particleFilters);
 
   if (!TString(opt).Contains("verb"))
     eventanalyzer->setReportLevel(MessageLogger::Error);
@@ -426,7 +419,11 @@ int main(int argc, char* argv[])
     ac->fillPairs = true;
     ac->fill3D = false;
     ac->fillPratt = false;
-    ac->fillYorEta = LONGITUDINAL;
+    if (conf->inrapidity) {
+      ac->fillYorEta = AnalysisConfiguration::kRapidity;
+    } else {
+      ac->fillYorEta = AnalysisConfiguration::kPseudorapidity;
+    }
 
     ac->scaleHistograms = true;
     ac->createHistograms = false;
@@ -470,7 +467,12 @@ int main(int argc, char* argv[])
       getCentMultNames(ef);
 
       Warning("statUncertain", "Processing sample %d for centrality %s", isamp, ctitle);
-      TList* list = extractSampleResults(opt, conf, samplefile, ac, ixrap, ef, isamp);
+      TList* list;
+      if (conf->inrapidity) {
+        list = extractSampleResults<AnalysisConfiguration::kRapidity>(opt, conf, samplefile, ac, ixrap, ef, isamp);
+      } else {
+        list = extractSampleResults<AnalysisConfiguration::kPseudorapidity>(opt, conf, samplefile, ac, ixrap, ef, isamp);
+      }
 
       for (Int_t ilst = 0; ilst < nmainlists; ++ilst) {
         pairslists[ilst][isamp] = list->At(ilst);
