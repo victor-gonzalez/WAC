@@ -218,7 +218,6 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
 
   /* the pair single histos */
   int npart = partname.size();
-  bool doeta = TString(opt).Contains("eta");
   for (int ipart = 0; ipart < npart; ++ipart) {   /* first component of the pair */
     for (int jpart = 0; jpart < npart; ++jpart) { /* second component of the pair */
       TList* plist = new TList();                 /* a list per pair */
@@ -226,14 +225,14 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
       auto addToList = [plist, &cname, isample](auto h) {
         plist->Add(h->Clone(TString::Format("%s%s_Sub%02d", h->GetName(), cname, isample)));
       };
-      if (doeta) {
-        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_P2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_R2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_G2_DetaDphi_shft);
-      } else {
+      if constexpr (r == AnalysisConfiguration::kRapidity) {
         addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_P2_DyDphi_shft);
         addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_R2_DyDphi_shft);
         addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_G2_DyDphi_shft);
+      } else {
+        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_P2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_R2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_Histos[ipart][jpart]->h_G2_DetaDphi_shft);
       }
       list->Add(plist);
     }
@@ -277,16 +276,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
       auto addToList = [plist, &cname, isample](auto h) {
         plist->Add(h->Clone(TString::Format("%s%s_Sub%02d", h->GetName(), cname, isample)));
       };
-      if (doeta) {
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_1bar2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_bar12_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_1bar2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_bar12_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_1bar2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_bar12_DetaDphi_shft);
-      } else {
+      if constexpr (r == AnalysisConfiguration::kRapidity) {
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_DyDphi_shft);
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_1bar2_DyDphi_shft);
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_bar12_DyDphi_shft);
@@ -295,6 +285,15 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_bar12_DyDphi_shft);
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_1bar2_DyDphi_shft);
         addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_bar12_DyDphi_shft);
+      } else {
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_1bar2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_R2BF_Pratt_bar12_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_1bar2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->h_PrattBF_bar12_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_1bar2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_BFHistos[ipart][jpart]->p_PrattBF_bar12_DetaDphi_shft);
       }
       list->Add(plist);
     }
@@ -308,20 +307,20 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
       auto addToList = [plist, &cname, isample](auto h) {
         plist->Add(h->Clone(TString::Format("%s%s_Sub%02d", h->GetName(), cname, isample)));
       };
-      if (doeta) {
-        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_P2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_P2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_R2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_R2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_G2_DetaDphi_shft);
-        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_G2_DetaDphi_shft);
-      } else {
+      if constexpr (r == AnalysisConfiguration::kRapidity) {
         addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_P2_DyDphi_shft);
         addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_P2_DyDphi_shft);
         addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_R2_DyDphi_shft);
         addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_R2_DyDphi_shft);
         addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_G2_DyDphi_shft);
         addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_G2_DyDphi_shft);
+      } else {
+        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_P2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_P2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_R2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_R2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_CIHistos[ipart][jpart]->h_G2_DetaDphi_shft);
+        addToList(eventanalyzer->pairs_CDHistos[ipart][jpart]->h_G2_DetaDphi_shft);
       }
       list->Add(plist);
     }
