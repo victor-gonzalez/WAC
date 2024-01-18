@@ -25,8 +25,12 @@ class Particle
   Particle& operator=(const Particle& other);
   void printProperties(ostream& output);
   void setPxPyPzE(double p_x, double p_y, double p_z, double p_e);
-  void setPidPxPyPzE(long pid, long charge, double p_x, double p_y, double p_z, double p_e);
-  void setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta);
+
+//  void setPidPxPyPzE(long pid,long charge, double p_x, double p_y, double p_z, double p_e);
+//  void setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta);
+  void setPidPxPyPzE(long pid, long charge, double p_x, double p_y, double p_z, double p_e, long pidMother=-1);
+  void setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta, long pidMother=-1);
+
 
   void boost(double ax, double ay, double az);
   void boostRapidity(double boost);
@@ -52,7 +56,7 @@ class Particle
   float phi;
   int ixYEtaPhi;
   int ixID; ///< the index of the filter which accepted the particle (kind of PID index)
-
+  long pidMother;
   static int factorySize;
   static Factory<Particle>* factory;
   static Factory<Particle>* getFactory();

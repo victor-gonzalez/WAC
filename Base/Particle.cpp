@@ -29,7 +29,8 @@ Particle::Particle()
     eta(0.0),
     phi(0.0),
     ixYEtaPhi(-1),
-    ixID(-1)
+    ixID(-1),
+    pidMother(0)
 {
   // no op
 }
@@ -58,8 +59,10 @@ Particle::Particle(const Particle& other)
     phi = other.phi;
     ixYEtaPhi = other.ixYEtaPhi;
     ixID = other.ixID;
+    pidMother = other.pidMother;
   }
 }
+
 
 Particle& Particle::operator=(const Particle& other)
 {
@@ -76,6 +79,7 @@ Particle& Particle::operator=(const Particle& other)
     phi = other.phi;
     ixYEtaPhi = other.ixYEtaPhi;
     ixID = other.ixID;
+    pidMother = other.pidMother;
   }
   return *this;
 }
@@ -103,6 +107,7 @@ void Particle::printProperties(ostream& output)
   output << "       y: " << y << endl;
   output << "     eta: " << eta << endl;
   output << "     phi: " << phi << endl;
+  output << " PIDMother: " << pidMother << endl;
 }
 
 void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
@@ -129,7 +134,33 @@ void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
   ixID = -1;
 }
 
-void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y, double p_z, double p_e)
+//void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y, double p_z, double p_e)
+//{
+//  pid = thePid;
+//  charge = theCharge;
+//  px = p_x;
+//  py = p_y;
+//  pz = p_z;
+//  e = p_e;
+//  pt = sqrt(px * px + py * py);
+//  phi = atan2(py, px);
+//  if (phi < 0)
+//    phi += 2.0 * float(TMath::Pi());
+//  double theta = atan2(pt, pz);
+//  eta = -log(tan(theta / 2.0));
+//  double plus = e + pz;
+//  double minus = e - pz;
+//  if (plus == 0)
+//    y = -1.0E50;
+//  else if (minus == 0)
+//    y = 1.0E50;
+//  else
+//    y = 0.5 * log(plus / minus);
+//  ixYEtaPhi = -1;
+//  ixID = -1;
+//}
+
+void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y, double p_z, double p_e, long thePidMother)
 {
   pid = thePid;
   charge = theCharge;
@@ -153,9 +184,26 @@ void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y
     y = 0.5 * log(plus / minus);
   ixYEtaPhi = -1;
   ixID = -1;
+  pidMother = thePidMother;
 }
 
-void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta)
+//void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta)
+//{
+//  pid = _id;
+//  charge = _ch;
+//  phi = float(TVector2::Phi_0_2pi(_phi));
+//  pt = TMath::Abs(_pT);
+//  eta = _eta;
+//  y = _y;
+//  px = pt * cos(phi);
+//  py = pt * sin(phi);
+//  pz = pt / TMath::Tan(2.0 * TMath::ATan(TMath::Exp(-eta)));
+//  e = 1.0 / TMath::TanH(_y);
+//  ixYEtaPhi = -1;
+//  ixID = -1;
+//}
+
+void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta, long _idMother)
 {
   pid = _id;
   charge = _ch;
@@ -169,6 +217,7 @@ void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, doub
   e = 1.0 / TMath::TanH(_y);
   ixYEtaPhi = -1;
   ixID = -1;
+  pidMother = _idMother;
 }
 
 void Particle::boost(double ax, double ay, double az)

@@ -30,6 +30,8 @@ class PythiaEventGenerator : public Task
   virtual void finalize();
   virtual void reset();
   virtual void execute();
+  int FindPDGMotherLevel(TParticle,int); 
+  int GetParticleIDDaughter(TParticle); 
 
   int nMax;                //  = 10000;
   TClonesArray* particles; // = new TClonesArray("TParticle", nMax);

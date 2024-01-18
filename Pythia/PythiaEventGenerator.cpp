@@ -95,7 +95,7 @@ void PythiaEventGenerator<r>::execute()
   if (reportDebug())
     cout << "PythiaEventGenerator::execute() Calling pythia8->ImportParticles()" << endl;
 
-  nparts = pythia8->ImportParticles(particles, "Final");
+  nparts = pythia8->ImportParticles(particles, "All");
   if (reportDebug()) {
     cout << "PythiaEventGenerator::execute() pythia8->ImportParticles() completed" << endl;
     cout << "PythiaEventGenerator::execute() with nparts:" << nparts << endl;
@@ -134,6 +134,9 @@ void PythiaEventGenerator<r>::execute()
     p_z = part.Pz();
     p_e = part.Energy();
     aParticle.setPidPxPyPzE(pdg, charge, p_x, p_y, p_z, p_e);
+ 
+    int pdgMother=FindPDGMotherLevel(part,0);
+    aParticle.setPidPxPyPzE(pdg, charge, p_x, p_y, p_z, p_e,pdgMother);
 
     /* we count the particle for multiplicity before acceptance  */
     event->addParticleToMultiplicity(aParticle);
@@ -170,6 +173,62 @@ void PythiaEventGenerator<r>::finalize()
   if (reportDebug())
     cout << "PythiaEventGenerator::finalize() completed" << endl;
 }
+
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+int PythiaEventGenerator<r>::GetParticleIDDaughter(TParticle part)
+{
+  int daughterPartID=-1;
+    // Get pdg of the Mother if exist
+  if ( part.GetStatusCode()<0 ){
+    daughterPartID = part.GetFirstDaughter();
+
+  }
+  return daughterPartID;
+ 
+}
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+int PythiaEventGenerator<r>::FindPDGMotherLevel(TParticle part,int level)
+{
+    // Get pdg of the Mother if exist
+
+  if (level==0 ){
+    int motherPartID = part.GetMother(level);
+    int pdgMother;
+    if (motherPartID > 0 ){
+      TParticle& partMother = *(TParticle*)particles->At(motherPartID);
+      pdgMother = partMother.GetPdgCode();
+ //     if (pdg==22){
+ //	  aParticle.printProperties(cout);
+ //	  cout << "motherPartID::"<< motherPartID << " " << part.GetMother(1)<< " "<< nparts<< "  " <$
+ //	 cout << "pdgMother::"  << pdgMother  << " pdg::"<< pdg<< endl;
+ //    }
+     return pdgMother;
+    }
+   }
+  TParticle * partMother;
+   if (level==1){
+     int motherPartID = part.GetMother(0);
+     int pdgMother;
+     if (motherPartID > 0 ){
+        partMother = (TParticle*)particles->At(motherPartID);
+        pdgMother = partMother->GetPdgCode();
+     }
+     int grandmotherPartID = partMother->GetMother(0);
+     int pdgGrandMother;
+     if (grandmotherPartID > 0 ){
+       TParticle& partGrandMother = *(TParticle*)particles->At(grandmotherPartID);
+       pdgGrandMother = partGrandMother.GetPdgCode();
+     }
+   return pdgGrandMother;
+   }
+return -1;
+ }
+
+
+
+
+
 
 // pythia8->ReadString("Init:showChangedSettings = on");      // list changed settings
 // pythia8->ReadString("Init:showChangedParticleData = off"); // list changed particle data
