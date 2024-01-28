@@ -29,6 +29,7 @@ TwoPartDiffCorrelationAnalyzerME<r>::TwoPartDiffCorrelationAnalyzerME(const TStr
     eventPool(EVENTPOOLSIZE, PARTICLESPEREVENT),
     particleFilters(particleFilters),
     nAccepted(particleFilters.size()),
+    nAcceptedPairs{particleFilters.size(), std::vector<int>(particleFilters.size(), 0)},
     event_Histos(nullptr),
     particle_Histos{particleFilters.size(), nullptr},
     pairs_Histos{particleFilters.size(), {particleFilters.size(), nullptr}},
@@ -433,6 +434,9 @@ void TwoPartDiffCorrelationAnalyzerME<r>::execute()
   /* process the singles building the particle indexes to hurry up the pairs process */
   for (uint i = 0; i < partNames.size(); ++i) {
     nAccepted[i] = 0;
+    for (uint j = 0; j < partNames.size(); ++j) {
+      nAcceptedPairs[i][j] = 0;
+    }
   }
   for (int iParticle = 0; iParticle < event->getNParticles(); iParticle++) {
     if (reportDebug())
@@ -455,9 +459,6 @@ void TwoPartDiffCorrelationAnalyzerME<r>::execute()
       cout << "  accepted as: " << particleFilters[particle->ixID]->getName() << endl;
     }
   }
-  for (uint i = 0; i < partNames.size(); ++i) {
-    particle_Histos[i]->fillMultiplicity(nAccepted[i], 1.0);
-  }
 
   /* now process pairs if required */
   bool eventPoolFull = eventPool.isFull();
@@ -477,6 +478,7 @@ void TwoPartDiffCorrelationAnalyzerME<r>::execute()
           continue;
 
         pairs_Histos[ixID1][ixID2]->fill<r>(particle1, particle2, 1.0, 1.0);
+        nAcceptedPairs[ixID1][ixID2] += 1;
       }
       /* fill the mixed event histograms if pool full */
       if (eventPoolFull) {
@@ -489,6 +491,14 @@ void TwoPartDiffCorrelationAnalyzerME<r>::execute()
             pairs_Histos_me[miniParticle.ixID][ixID1]->fill<r>(miniParticle, particle1, 1.0, 1.0);
           }
         }
+      }
+    }
+  }
+  for (uint i = 0; i < partNames.size(); ++i) {
+    particle_Histos[i]->fillEventWiseInfo(event->getMultiplicityClass(), nAccepted[i], 1.0);
+    if (analysisConfiguration->fillPairs) {
+      for (uint j = 0; j < partNames.size(); ++j) {
+        pairs_Histos[i][j]->fillEventWiseInfo(event->getMultiplicityClass(),nAcceptedPairs[i][j], 1.0);
       }
     }
   }

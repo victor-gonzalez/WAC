@@ -21,6 +21,7 @@ ParticlePairDiffHistos::ParticlePairDiffHistos(const TString& name,
                                                LogLevel debugLevel)
   : Histograms(name, configuration, 150, debugLevel),
     h_n2_ptPt(nullptr),
+    p_n2_vsC(nullptr),
     h_n2_DetaDphi(nullptr),
     p_n2_DetaDphi(nullptr),
     h_ptpt_DetaDphi(nullptr),
@@ -58,6 +59,7 @@ ParticlePairDiffHistos::ParticlePairDiffHistos(TDirectory* dir,
                                                LogLevel debugLevel)
   : Histograms(name, configuration, 150, debugLevel),
     h_n2_ptPt(nullptr),
+    p_n2_vsC(nullptr),
     h_n2_DetaDphi(nullptr),
     p_n2_DetaDphi(nullptr),
     h_ptpt_DetaDphi(nullptr),
@@ -138,6 +140,7 @@ void ParticlePairDiffHistos::initialize()
   } else {
     h_n2_ptPt = createHistogram(bn + TString("n2_ptPt"), ac.nBins_pt, ac.min_pt, ac.max_pt, ac.nBins_pt, ac.min_pt, ac.max_pt, "p_{T,1}", "p_{T,2}", "N_{2}", scaled, saved, plotted, notPrinted);
   }
+  p_n2_vsC = createProfile(bn + TString("n2_vsC"), 100,0.0,100.0, "Centrality/Multiplicity (%)", "#LTn_{2}#GT", saved, notPlotted, notPrinted);
   if (ac.fillYorEta == ac.kPseudorapidity) {
     h_n2_DetaDphi = createHistogram(bn + TString("n2_DetaDphi"), ac.nBins_Deta, ac.min_Deta, ac.max_Deta, ac.nBins_Dphi, ac.min_Dphi, ac.max_Dphi, "#Delta#eta", "#Delta#varphi", "<n_{2}>", scaled, saved, notPlotted, notPrinted, false);
     p_n2_DetaDphi = createProfile(bn + TString("p_n2_DetaDphi"), ac.nBins_Deta, ac.min_Deta, ac.max_Deta, ac.nBins_Dphi, ac.min_Dphi, ac.max_Dphi, "#Delta#eta", "#Delta#varphi", "<n_{2}>", notScaled, saved, notPlotted, notPrinted, false);
@@ -254,6 +257,8 @@ void ParticlePairDiffHistos::loadHistograms(TDirectory* dir)
   ac.min_Dy = ac.min_y - ac.max_y;
   ac.max_Dy = ac.max_y - ac.min_y;
 
+  h_n2_ptPt = loadH2(dir, bn + TString("n2_ptPt"), true);
+  p_n2_vsC = loadProfile(dir, bn + TString("n2_vsC"), false);
   if (ac.fillYorEta == ac.kPseudorapidity) {
     h_n2_DetaDphi = loadH2(dir, bn + TString("n2_DetaDphi"), true);
     p_n2_DetaDphi = loadProfile2D(dir, bn + TString("p_n2_DetaDphi"), false); /* don't downscale the profiles */
@@ -289,5 +294,11 @@ void ParticlePairDiffHistos::loadHistograms(TDirectory* dir)
   bOwnTheHistograms = false;
   return;
 }
+
+void ParticlePairDiffHistos::fillEventWiseInfo(float multiplicity, double nAccepted, float weight)
+{
+  p_n2_vsC->Fill(multiplicity, nAccepted, weight);
+}
+
 
 ClassImp(ParticlePairDiffHistos)

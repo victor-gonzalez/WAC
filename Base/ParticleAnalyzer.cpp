@@ -187,7 +187,7 @@ void ParticleAnalyzer<r>::execute()
     }
   }
   for (int iFilter = 0; iFilter < nParticleFilters; iFilter++) {
-    particleHistos[iFilter]->fillMultiplicity(nAccepted[iFilter], 1.0);
+    particleHistos[iFilter]->fillEventWiseInfo(event->getMultiplicityClass(), nAccepted[iFilter], 1.0);
   }
   // if (reportDebug()) cout << "ParticleAnalyzer::execute() Completed" << endl;
 }

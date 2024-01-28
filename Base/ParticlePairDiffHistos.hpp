@@ -43,11 +43,13 @@ class ParticlePairDiffHistos : public Histograms
   template <AnalysisConfiguration::RapidityPseudoRapidity r, typename ParticleType1, typename ParticleType2>
   void fill(ParticleType1& particle1, ParticleType2& particle2, double weight1, double weight2, double pTavg1 = 0.0, double pTavg2 = 0.0);
   void loadHistograms(TDirectory* dir);
+  void fillEventWiseInfo(float multiplicity, double nAccepted, float weight);
 
   ////////////////////////////////////////////////////////////////////////////
   // Data Members - Histograms
   ////////////////////////////////////////////////////////////////////////////
   TH2* h_n2_ptPt;
+  TProfile* p_n2_vsC;
 
   TH2* h_n2_DetaDphi;
   TProfile2D* p_n2_DetaDphi;
@@ -75,7 +77,7 @@ class ParticlePairDiffHistos : public Histograms
   TH2* h_dptdpt_QoutKt;
   TH3* h_dptdpt_QlongQsideQout;
 
-  ClassDef(ParticlePairDiffHistos, 3)
+  ClassDef(ParticlePairDiffHistos, 4)
 };
 
 /// WARNING: for performance reasons no checks are done about the consistency

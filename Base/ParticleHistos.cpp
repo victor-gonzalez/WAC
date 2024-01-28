@@ -38,6 +38,7 @@ void ParticleHistos::createHistograms()
   AnalysisConfiguration& ac = *getConfiguration();
   TString bn = getHistoBaseName();
   h_n1 = createHistogram(bn + TString("n1"), 1000, -0.5, 999.5, "n_1", "N", scaled, saved, plotted, notPrinted);
+  p_n1_vsC = createProfile(bn + TString("n1_vsC"), 101, -0.5,100.5, "Centrality/Multiplicity (%)", "#LTn_{1}#GT", saved, notPlotted, notPrinted);
   h_n1_pid = createHistogram(bn + TString("n1_pid"), 100, 0.5, 100.5, "PID", "N", scaled, saved, plotted, notPrinted);
   if (ac.bin_edges_pt.size() > 0) {
     h_n1_pt = createHistogram(bn + TString("n1_pt"), ac.bin_edges_pt, "p_{T}", "N", scaled, saved, plotted, notPrinted);
@@ -108,6 +109,7 @@ void ParticleHistos::loadHistograms(TDirectory* dir)
   AnalysisConfiguration& ac = *getConfiguration();
   TString bn = getHistoBaseName();
   h_n1 = loadH1(dir, bn + TString("n1"), true);
+  p_n1_vsC = loadProfile(dir, bn + TString("n1_vsC"), false);
   h_n1_pid = loadH1(dir, bn + TString("n1_pid"), true);
   h_n1_pt = loadH1(dir, bn + TString("n1_pt"), true);
   h_n1_ptXS = loadH1(dir, bn + TString("n1_ptXS"), true);
@@ -143,9 +145,10 @@ void ParticleHistos::loadHistograms(TDirectory* dir)
   return;
 }
 
-void ParticleHistos::fillMultiplicity(double nAccepted, double weight)
+void ParticleHistos::fillEventWiseInfo(float multiplicity, double nAccepted, float weight)
 {
   h_n1->Fill(nAccepted, weight);
+  p_n1_vsC->Fill(multiplicity, nAccepted, weight);
 }
 
 // complete filling the addicional histograms by projecting the

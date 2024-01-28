@@ -31,13 +31,14 @@ class ParticleHistos : public Histograms
   template <AnalysisConfiguration::RapidityPseudoRapidity r>
   void fill(TLorentzVector& p, double weight);
   void completeFill();
-  void fillMultiplicity(double nAccepted, double weight);
+  void fillEventWiseInfo(float multiplicity, double nAccepted, float weight);
   void calculateAverages();
 
   ////////////////////////////////////////////////////////////////////////////
   // Data Members - Histograms
   ////////////////////////////////////////////////////////////////////////////
   TH1* h_n1;
+  TProfile* p_n1_vsC;
   TH1* h_n1_pid;
   TH1* h_n1_pt;
   TH1* h_n1_ptXS; // 1/pt dN/dptdy
@@ -62,7 +63,7 @@ class ParticleHistos : public Histograms
   TH1* h_pt_y;
   TH2* h_pt_phiY;
 
-  ClassDef(ParticleHistos, 3)
+  ClassDef(ParticleHistos, 4)
 };
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
