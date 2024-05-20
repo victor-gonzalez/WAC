@@ -60,8 +60,10 @@ class PythiaAnalysisConfiguration : public TObject
         return ParticleFilter<r>::Kaon;
       } else if (str == "PrP" || str == "PrM" || str == "PrC" || str == "PrA") {
         return ParticleFilter<r>::Proton;
-      } else if (str == "La" || str == "ALa") {
+      } else if (str == "La") {
         return ParticleFilter<r>::Lambda;
+      } else if (str == "ALa") {
+        return ParticleFilter<r>::ALambda;
       } else if (str == "Gam") {
         return ParticleFilter<r>::Photon;
       } else if (str == "AllP" || str == "AllM" || str == "AllC" || str == "All0" || str == "AllA") {
