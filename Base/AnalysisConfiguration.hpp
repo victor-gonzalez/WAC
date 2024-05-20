@@ -134,7 +134,7 @@ class AnalysisConfiguration : public TaskConfiguration
   double min_cent;
   double max_cent;
 
-  ClassDef(AnalysisConfiguration, 0)
+  ClassDef(AnalysisConfiguration, 1)
 };
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r>

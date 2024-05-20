@@ -21,7 +21,7 @@ ROOT_GENERATE_DICTIONARY(G__Pythia ${HEADER_FILES} LINKDEF PythiaLinkDef.h)
 ################################################################################################
 
 add_library(WacPythia SHARED ${SOURCE_FILES} G__Pythia.cxx)
-target_link_libraries(WacPythia Base  PYTHIA8 EGPythia8  ${ROOT_LIBRARIES} ${EXTRA_LIBS} )
+target_link_libraries(WacPythia Base  PYTHIA8LIB EGPythia8  ${ROOT_LIBRARIES} ${EXTRA_LIBS} )
 target_include_directories(WacPythia  PUBLIC Base Pythia ${EXTRA_INCLUDES})
 
 add_executable(TestPythiaAnalysisConfiguration TestPythiaAnalysisConfiguration.cpp)
@@ -30,19 +30,19 @@ target_link_libraries(TestPythiaAnalysisConfiguration Base WacPythia EG ${ROOT_L
 
 add_executable(RunPythiaSimulationSingleParticles RunPythiaSimulationSingleParticles.cpp)
 target_include_directories(RunPythiaSimulationSingleParticles PUBLIC Base WacPythia ${EXTRA_INCLUDES})
-target_link_libraries(RunPythiaSimulationSingleParticles Base WacPythia Base EG PYTHIA8 EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
+target_link_libraries(RunPythiaSimulationSingleParticles Base WacPythia Base EG PYTHIA8LIB EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
 
 add_executable(RunPythiaSimulationTwoParticles RunPythiaSimulationTwoParticles.cpp)
 target_include_directories(RunPythiaSimulationTwoParticles PUBLIC Base WacPythia ${EXTRA_INCLUDES})
-target_link_libraries(RunPythiaSimulationTwoParticles Base WacPythia Base EG PYTHIA8 EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
+target_link_libraries(RunPythiaSimulationTwoParticles Base WacPythia Base EG PYTHIA8LIB EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
 
 add_executable(RunPythiaSimulationTwoParticlesDiff RunPythiaSimulationTwoParticlesDiff.cpp)
 target_include_directories(RunPythiaSimulationTwoParticlesDiff PUBLIC Base WacPythia ${EXTRA_INCLUDES})
-target_link_libraries(RunPythiaSimulationTwoParticlesDiff Base WacPythia Base EG PYTHIA8 EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
+target_link_libraries(RunPythiaSimulationTwoParticlesDiff Base WacPythia Base EG PYTHIA8LIB EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
 
 add_executable(RunPythiaSimulationTwoParticlesDiffME RunPythiaSimulationTwoParticlesDiffME.cpp)
 target_include_directories(RunPythiaSimulationTwoParticlesDiffME PUBLIC Base WacPythia ${EXTRA_INCLUDES})
-target_link_libraries(RunPythiaSimulationTwoParticlesDiffME Base WacPythia Base EG PYTHIA8 EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
+target_link_libraries(RunPythiaSimulationTwoParticlesDiffME Base WacPythia Base EG PYTHIA8LIB EGPythia8 ${ROOT_LIBRARIES} ${EXTRA_LIBS} ${CMAKE_DL_LIBS})
 
 add_executable(statUncertainPythia statUncertainPythia.cpp)
 target_include_directories(statUncertainPythia PUBLIC Base WacPythia ${EXTRA_INCLUDES})

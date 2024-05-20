@@ -26,7 +26,7 @@ list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 #---Locate the ROOT package and defines a number of variables (e.g. ROOT_INCLUDE_DIRS)
 find_package(ROOT CONFIG REQUIRED)
 find_library(EG EG)
-find_library(PYTHIA8 pythia8 PATHS $ENV{PYTHIA8}/lib)
+find_library(PYTHIA8LIB pythia8 PATHS $ENV{PYTHIA8}/lib)
 
 add_compile_options(-pthread -std=c++17 -m64)
 
@@ -35,7 +35,7 @@ include_directories(${CMAKE_SOURCE_DIR} ${ROOT_INCLUDE_DIRS} $ENV{MYHOME} $ENV{A
 set(WAC_ROOT_LIBRARIES ROOT::Core ROOT::MathCore ROOT::Hist ROOT::Tree ROOT::Graf ROOT::Physics ROOT::Gpad)
 
 add_library(EG SHARED IMPORTED)
-add_library(PYTHIA8 SHARED IMPORTED)
+add_library(PYTHIA8LIB SHARED IMPORTED)
 # address of Pythia8 xmldoc
 add_definitions(-DPYTHIA8XMLPATH="$ENV{PYTHIA8}/share/Pythia8/xmldoc")
 
@@ -47,7 +47,7 @@ set_target_properties(EGPythia8 PROPERTIES IMPORTED_LOCATION ${EGPythia8})
 endif()
 
 set_target_properties(EG PROPERTIES IMPORTED_LOCATION ${EG})
-set_target_properties(PYTHIA8 PROPERTIES IMPORTED_LOCATION ${PYTHIA8})
+set_target_properties(PYTHIA8LIB PROPERTIES IMPORTED_LOCATION ${PYTHIA8LIB})
 
 
 if (DEFINED ENV{MYHOME})
