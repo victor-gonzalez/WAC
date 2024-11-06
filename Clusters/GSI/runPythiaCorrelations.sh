@@ -8,14 +8,13 @@ echo ulimit `ulimit -c`
 
 # setting the root and pythia scenario
 export ALIEN_SITE=GSI
-LATEST="VO_ALICE@AliGenerators::v20221125-1"
+LATEST="VO_ALICE@AliGenerators::v20241101-1"
 export ALIPHYSICS_VERSION=$LATEST
 
-source <( /cvmfs/alice.cern.ch/bin/alienv printenv VO_ALICE@Python::v3.9.12-10)
 source <( /cvmfs/alice.cern.ch/bin/alienv printenv $LATEST)
 echo $LATEST
 
-export PYTHIA8=/cvmfs/alice.cern.ch/el7-x86_64/Packages/pythia/v8304-44
+export PYTHIA8=/cvmfs/alice.cern.ch/el7-x86_64/Packages/pythia/v8311-18
 
 ####################################################################################################
 echo "Setting up WAC"

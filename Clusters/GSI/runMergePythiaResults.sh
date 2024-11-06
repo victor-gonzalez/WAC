@@ -19,7 +19,7 @@ echo ulimit `ulimit -c`
 
 # setting the root and pythia scenario
 export ALIEN_SITE=GSI
-LATEST="VO_ALICE@ROOT::v6-26-04-patches-alice2-22"
+LATEST="VO_ALICE@ROOT::v6-32-06-alice1-4"
 export ALIPHYSICS_VERSION=$LATEST
 
 source <( /cvmfs/alice.cern.ch/bin/alienv printenv $LATEST)

@@ -10,6 +10,5 @@ export PATH="$WAC_BIN:$PATH"
 export DYLD_LIBRARY_PATH="$WAC_LIB:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="$WAC_LIB:$LD_LIBRARY_PATH"
 
-export PYTHIA8=/cvmfs/alice.cern.ch/el7-x86_64/Packages/pythia/v8304-44
-export ATGSI="$WAC_ROOT/GSI"
+export PYTHIA8=/cvmfs/alice.cern.ch/el7-x86_64/Packages/pythia/v8311-18
 
