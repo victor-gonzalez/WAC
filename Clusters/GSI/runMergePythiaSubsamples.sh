@@ -18,7 +18,7 @@ FILENAME=$1
 
 # setting the root and pythia scenario
 export ALIEN_SITE=GSI
-LATEST="VO_ALICE@ROOT::v6-32-06-alice1-4"
+LATEST="VO_ALICE@AliGenerators::v20241101-1"
 export ALIPHYSICS_VERSION=$LATEST
 
 source <( /cvmfs/alice.cern.ch/bin/alienv printenv $LATEST)
