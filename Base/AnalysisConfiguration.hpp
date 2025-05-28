@@ -46,6 +46,10 @@ class AnalysisConfiguration : public TaskConfiguration
   int getDeltaYEtaIndex(ParticleType1& particle1, ParticleType2& particle2);
   template <typename ParticleType1, typename ParticleType2>
   int getDeltaPhiIndex(ParticleType1& particle1, ParticleType2& particle2);
+  template <RapidityPseudoRapidity r, typename ParticleType1, typename ParticleType2>
+  float getDeltaYEtaCompensation(ParticleType1& particle1, ParticleType2& particle2);
+  template <typename ParticleType1, typename ParticleType2>
+  float getDeltaPtCompensation(ParticleType1& particle1, ParticleType2& particle2);
 
   ////////////////////////////////////////////////////
   // Data Members
@@ -221,6 +225,31 @@ inline int AnalysisConfiguration::getDeltaPhiIndex(ParticleType1& particle1, Par
   }
 
   return deltaphi_ix;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r, typename ParticleType1, typename ParticleType2>
+inline float AnalysisConfiguration::getDeltaYEtaCompensation(ParticleType1& particle1, ParticleType2& particle2)
+{
+  if constexpr (r == AnalysisConfiguration::kRapidity) {
+    float deltaY = std::abs(particle1.y - particle2.y);
+    float invFactor = 1.0f - deltaY / max_Dy;
+
+    return invFactor != 0 ? 1.f / invFactor : 0.0f;
+  } else {
+    float deltaEta = std::abs(particle1.eta - particle2.eta);
+    float invFactor = 1.0f - deltaEta / max_Deta;
+
+    return invFactor > 0 ? 1.f / invFactor : 0.0f;
+  }
+}
+
+template <typename ParticleType1, typename ParticleType2>
+inline float AnalysisConfiguration::getDeltaPtCompensation(ParticleType1& particle1, ParticleType2& particle2)
+{
+  float deltaPt = std::abs(particle1.pt - particle2.pt);
+  float invFactor = 1.0f - deltaPt / range_pt;
+
+  return invFactor > 0 ? 1.f / invFactor : 0.0f;
 }
 
 #endif /* WAC_AnalysisConfiguration */

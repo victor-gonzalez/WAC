@@ -40,7 +40,7 @@ class ParticlePairDiffHistos : public Histograms
   float getDeltaPhi(ParticleType1& particle1, ParticleType2& particle2);
   template <typename ParticleType1, typename ParticleType2>
   float getInvMass(ParticleType1& particle1, ParticleType2& particle2);
-  template <typename ParticleType1, typename ParticleType2>
+  template <AnalysisConfiguration::RapidityPseudoRapidity r, typename ParticleType1, typename ParticleType2>
   void getPratt(ParticleType1& particle1, ParticleType2& particle2, double& kT, double& qinv, double& qlong, double& qside, double& qout);
   template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options, typename ParticleType1, typename ParticleType2>
   void fill(ParticleType1& particle1, ParticleType2& particle2, double weight1, double weight2, double pTavg1 = 0.0, double pTavg2 = 0.0);
@@ -152,7 +152,7 @@ inline float ParticlePairDiffHistos::getInvMass(ParticleType1& particle1, Partic
   return invMass;
 }
 
-template <typename ParticleType1, typename ParticleType2>
+template <AnalysisConfiguration::RapidityPseudoRapidity r, typename ParticleType1, typename ParticleType2>
 void ParticlePairDiffHistos::getPratt(ParticleType1& particle1, ParticleType2& particle2, double& kT, double& qinv, double& qlong, double& qside, double& qout)
 {
   // https://arxiv.org/abs/nucl-th/0303025
@@ -165,6 +165,10 @@ void ParticlePairDiffHistos::getPratt(ParticleType1& particle1, ParticleType2& p
   double m2sq = 0.0;
   double s = 0.0;
   double qinvsq = 0.0;
+
+  /* we always compensate for limited acceptance */
+  float rapidityCompensation = configuration->getDeltaYEtaCompensation<r>(particle1, particle2);
+  float ptCompensation = configuration->getDeltaPtCompensation(particle1, particle2);
 
   particle1.getEPxPyPz(p1);
   particle2.getEPxPyPz(p2);
@@ -195,6 +199,10 @@ void ParticlePairDiffHistos::getPratt(ParticleType1& particle1, ParticleType2& p
     qside = sqrt(qinvsq - qlong * qlong);
     qout = 0.0;
   }
+  /* we always compensate for limited acceptance */
+  qinv *= rapidityCompensation * ptCompensation;
+  qside *= rapidityCompensation * ptCompensation;
+  qout *= rapidityCompensation * ptCompensation;
 }
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options, typename ParticleType1, typename ParticleType2>
@@ -290,7 +298,7 @@ void ParticlePairDiffHistos::fill(ParticleType1& particle1, ParticleType2& parti
   /* TODO: this has to be templated */
   if constexpr ((options & AnalysisConfiguration::kFillPratt) == AnalysisConfiguration::kFillPratt) {
     double kT, Qinv, Qlong, Qside, Qout;
-    getPratt(particle1, particle2, kT, Qinv, Qlong, Qside, Qout);
+    getPratt<r>(particle1, particle2, kT, Qinv, Qlong, Qside, Qout);
 
     h_n2_QinvKt->Fill(kT, Qinv, weight1 * weight2);
     h_n2_QlongKt->Fill(kT, Qlong, weight1 * weight2);
