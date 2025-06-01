@@ -10,6 +10,11 @@ if [ $# -lt 3 ]; then
   exit 1
 fi
 
+# incorporate shell utilities
+utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/utilities.sh
+[ ! -f "$utilities_file" ] && { echo "Error: $utilities_file not found." >&2; exit 1; }
+. "$utilities_file"
+
 BASEDIRECTORY=$1
 NMAINJOBS=$2
 NSUBJOBS=$3
@@ -46,11 +51,24 @@ cp $CONFIGURATIONFILE $BASEDIRECTORY/$PRODUCTIONDIRECTORY
 # and extract needed information
 OUTFNAME=`sed -n '/"outputfname"\s*:\s*"\(.*\)",/p' ${CONFIGURATIONFILE} | sed 's/\s*"outputfname"\s*:\s*"\(.*\)",/\1/'`
 TASKNAME=`sed -n '/"taskname"\s*:\s*"\(.*\)",/p' ${CONFIGURATIONFILE} | sed 's/\s*"taskname"\s*:\s*"\(.*\)",/\1/'`
-RAPIDITIES=`sed -n '/"abs\_y"\s*:\s*\[\(.*\)\],/p' configuration.json | sed 's/\s*"abs\_y"\s*:\s*\[\(.*\)\],/\1/' | tr ',' ' '`
-CRAPIDITIES=`sed -n '/"abs\_y"\s*:\s*\[\(.*\)\],/p' configuration.json | sed 's/\s*"abs\_y"\s*:\s*\[\(.*\)\],/\1/' | sed 's/,/0/g' | sed 's/0\.//g'`
-RAPIDITIESLIST=($CRAPIDITIES)
-NRAPIDITIES=${#RAPIDITIESLIST[@]}
-ARRAYLAST=$(( NRAPIDITIES-1 ))
+
+# Extract the rapidities/pseudorapidities
+if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "abs\_y" "CRAPIDITIES"; then
+    echo "Failed to extract 'abs\_y'" >&2
+    exit 1
+fi
+# Extract the pT ranges
+if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "ptRangeLows" "CPTRANGELOWS"; then
+    echo "Failed to extract 'ptRangeLows'" >&2
+    exit 1
+fi
+if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "ptRangeUps" "CPTRANGEUPS"; then
+    echo "Failed to extract 'ptRangeUps'" >&2
+    exit 1
+fi
+# and convert them to arrays
+read -ra CPTRANGELOWS_ARRAY <<< "$CPTRANGELOWS"
+read -ra CPTRANGEUPS_ARRAY <<< "$CPTRANGEUPS"
 
 MERGEJOBSIDS=
 
@@ -74,33 +92,41 @@ do
   # submit the merging of the job array results per rapidity
   for crap in ${CRAPIDITIES}
   do
-    FNAMEPATERN=`printf ${OUTFNAME}_??? ${crap}`
-    MERGEDFNAME=`printf ${OUTFNAME} ${crap}`
+    # and per pT range
+    for ((iPtRange=0; iPtRange<${#CPTRANGELOWS_ARRAY[@]}; iPtRange++))
+    do
+      sleep 2s
+      FNAMEPATERN=`printf ${OUTFNAME}_??? ${crap} ${CPTRANGELOWS_ARRAY[iPtRange]} ${CPTRANGEUPS_ARRAY[iPtRange]}`
+      MERGEDFNAME=`printf ${OUTFNAME} ${crap} ${CPTRANGELOWS_ARRAY[iPtRange]} ${CPTRANGEUPS_ARRAY[iPtRange]}`
 
-    # merge the results
-    mergeJOBNAME="waitMerge_$(printf "BUNCH%02d_Rap%03d" $ijob ${crap})"
-    cmd="sbatch -J $mergeJOBNAME --chdir=${WORKINGDIRECTORY}/Output --mem-per-cpu=8000 --time=03:00:00 -d afterany:$ARRAYJOBID -o ${WORKINGDIRECTORY}/log/merge/Job_%A.out -e ${WORKINGDIRECTORY}/log/merge/Job_%A.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runMergePythiaResults.sh ${MERGEDFNAME} ${FNAMEPATERN}"
-    MERGEJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
-    echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
+      # merge the results
+      mergeJOBNAME="waitMerge_$(printf "BUNCH%02d_Rap%03d_Pt%02d%02d" $ijob ${crap} ${CPTRANGELOWS_ARRAY[iPtRange]} ${CPTRANGEUPS_ARRAY[iPtRange]})"
+      cmd="sbatch -J $mergeJOBNAME --chdir=${WORKINGDIRECTORY}/Output --mem-per-cpu=8000 --time=03:00:00 -d afterany:$ARRAYJOBID -o ${WORKINGDIRECTORY}/log/merge/Job_%A.out -e ${WORKINGDIRECTORY}/log/merge/Job_%A.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runMergePythiaResults.sh ${MERGEDFNAME} ${FNAMEPATERN}"
+      MERGEJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
+      echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
 
-    echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
-    MERGEJOBSIDS=${MERGEJOBSIDS}:${MERGEJOBID}
+      echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
+      MERGEJOBSIDS=${MERGEJOBSIDS}:${MERGEJOBID}
+    done
   done
-  sleep 2s
 done
 
 # submit the final merging for both pairs and singles results
 for crap in ${CRAPIDITIES}
 do
-  MERGEDFNAME=`printf ${OUTFNAME} ${crap}`
+  for ((iPtRange=0; iPtRange<${#CPTRANGELOWS_ARRAY[@]}; iPtRange++))
+  do
+    sleep 2s
+    MERGEDFNAME=`printf ${OUTFNAME} ${crap} ${CPTRANGELOWS_ARRAY[iPtRange]} ${CPTRANGEUPS_ARRAY[iPtRange]}`
 
-  cmd="sbatch -J waitFinalMerge --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --mem-per-cpu=8000 --time=03:00:00 -d afterany${MERGEJOBSIDS} -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/SinglesMergeJob_%A.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/SinglesMergeJob_%A.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runMergePythiaSubsamples.sh ${MERGEDFNAME}"
-  JOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
-  echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
+    cmd="sbatch -J waitFinalMerge --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --mem-per-cpu=8000 --time=03:00:00 -d afterany${MERGEJOBSIDS} -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/SinglesMergeJob_%A.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/SinglesMergeJob_%A.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runMergePythiaSubsamples.sh ${MERGEDFNAME}"
+    JOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
+    echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
 
-  echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
-  sleep 2s
+    echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
+  done
 done
+sleep 2s
 
 # submit the extraction of results with statistical uncertainties
 cmd="sbatch -J waitStatsUncertain --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --time=01:00:00 -d afterany${MERGEJOBSIDS} -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/batchRunStatsUncertain.sh ${BASEDIRECTORY} ${PRODUCTIONDIRECTORY}"

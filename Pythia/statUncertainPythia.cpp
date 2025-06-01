@@ -51,13 +51,13 @@ const char* bfnames[nbf] = {"R2BF", "R2BFPratt1bar2", "R2BFPrattbar12", "N2Pratt
 
 int nsamples = 10;
 
-TFile* getSampleFile(PythiaAnalysisConfiguration* conf, int irap, int isample)
+TFile* getSampleFile(PythiaAnalysisConfiguration* conf, int irap, int iPtRange, int isample)
 {
   TFile* f = nullptr;
 
   std::string filename = TString::Format("BUNCH%02d/Output/%s",
                                          isample + 1,
-                                         TString::Format("%s.root", TString::Format(conf->outputfname.c_str(), int(conf->abs_y[irap] * 10)).Data()).Data())
+                                         TString::Format("%s.root", TString::Format(conf->outputfname.c_str(), int(conf->abs_y[irap] * 10), int(conf->ptRangeLows[iPtRange] * 10), int(conf->ptRangeUps[iPtRange] * 10)).Data()).Data())
                            .Data();
   f = new TFile(filename.c_str());
   if (f == nullptr or not f->IsOpen()) {
@@ -351,7 +351,8 @@ int main(int argc, char* argv[])
   std::string prodtag = argv[1];
   Option_t* opt = argv[2];
   int ixrap = stoi(argv[3]);
-  int ixef = stoi(argv[4]);
+  int ixPtRange = stoi(argv[4]);
+  int ixef = stoi(argv[5]);
 
   TTimeStamp now = TTimeStamp();
   if (!TString(opt).Contains("verb"))
@@ -385,7 +386,7 @@ int main(int argc, char* argv[])
   /* Cummulate errors by default */
   TH1::SetDefaultSumw2(kTRUE);
 
-  auto getAnalysisConfiguration = [&conf, &ixrap]() {
+  auto getAnalysisConfiguration = [&conf, &ixPtRange, &ixrap]() {
     AnalysisConfiguration* ac = new AnalysisConfiguration("PYTHIA8", "UCM-miniWAC", "1.0");
 
     ac->outputPath = "./";
@@ -397,12 +398,12 @@ int main(int argc, char* argv[])
     // =========================
     float min_y = -conf->abs_y[ixrap];
     float max_y = conf->abs_y[ixrap];
-    float min_pt = conf->min_pt;
-    float max_pt = conf->max_pt;
+    float min_pt = conf->ptRangeLows[ixPtRange];
+    float max_pt = conf->ptRangeUps[ixPtRange];
     int nBins_y = int((max_y - min_y) / 0.1);
 
     ac->bin_edges_pt = conf->ptbins;
-    ac->nBins_pt = conf->n_ptbins;
+    ac->nBins_pt = conf->nPtRangeBins[ixPtRange];
     ac->min_pt = min_pt;
     ac->max_pt = max_pt;
     ac->nBins_eta = nBins_y;
@@ -456,7 +457,7 @@ int main(int argc, char* argv[])
   }
 
   for (Int_t isamp = 0; isamp < nsamples; isamp++) {
-    TFile* samplefile = getSampleFile(conf, ixrap, isamp);
+    TFile* samplefile = getSampleFile(conf, ixrap, ixPtRange, isamp);
     if (samplefile != nullptr && samplefile->IsOpen()) {
 
       std::string ef = conf->teventfilter[ixef];
