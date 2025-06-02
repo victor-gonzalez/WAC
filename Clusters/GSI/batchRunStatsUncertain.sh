@@ -28,8 +28,8 @@ fi
 CONFIGURATIONFILE=$BASEDIRECTORY/$PRODUCTIONDIRECTORY/configuration.json
 
 # Extract the rapidities/pseudorapidities
-if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "abs\_y" "CRAPIDITIES"; then
-    echo "Failed to extract 'abs\_y'" >&2
+if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "abs_y" "CRAPIDITIES"; then
+    echo "Failed to extract 'abs_y'" >&2
     exit 1
 fi
 # and convert them to array
@@ -78,6 +78,7 @@ do
       echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
       echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
     done
+  done
 done
 
 

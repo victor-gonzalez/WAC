@@ -1,18 +1,19 @@
 #!/bin/bash
 
-if [ $# -gt 3 ]; then
-  echo "usage: runStatsUncertain productiontag ixrap ixevtflt"
+if [ $# -gt 4 ]; then
+  echo "usage: runStatsUncertain productiontag ixrap ixptrange ixevtflt"
   exit 1
 fi
 
-if [ $# -lt 3 ]; then
-  echo "usage: runStatsUncertain productiontag ixrap ixevtflt"
+if [ $# -lt 4 ]; then
+  echo "usage: runStatsUncertain productiontag ixrap ixptrange ixevtflt"
   exit 1
 fi
 
 PRODUCTIONTAG=$1
 IXRAP=$2
-IXEVTFLT=$3
+IXPTRANGE=$3
+IXEVTFLT=$4
 
 # no more core files
 ulimit -c 0
@@ -40,4 +41,4 @@ export PATH="$WAC_BIN:$PATH"
 export DYLD_LIBRARY_PATH="$WAC_LIB:$PYTHIA8/lib:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="$WAC_LIB:$PYTHIA8/lib:$LD_LIBRARY_PATH"
 
-statUncertainPythia $PRODUCTIONTAG "" $IXRAP $IXEVTFLT
+statUncertainPythia $PRODUCTIONTAG "" $IXRAP $IXPTRANGE $IXEVTFLT

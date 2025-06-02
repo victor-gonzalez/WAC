@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
       ac->rootInputFileName = "";
       ac->outputPath = "Output/";
       ac->rootOuputFileName = TString::Format("%s_%03d", TString::Format(conf->outputfname.c_str(), int(y * 10), int(ptRangeLows[iPtRange] * 10), int(ptRangeUps[iPtRange] * 10)).Data(), jobix).Data();
-      ac->outputDirectory = TString::Format("%s", TString::Format(conf->outputfname.c_str(), int(y * 10)).Data()).Data();
+      ac->outputDirectory = TString::Format("%s", TString::Format(conf->outputfname.c_str(), int(y * 10), int(ptRangeLows[iPtRange] * 10), int(ptRangeUps[iPtRange] * 10)).Data()).Data();
       ac->histoBaseName = "TEST";
 
       ac->bin_edges_pt = conf->ptbins;

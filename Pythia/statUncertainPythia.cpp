@@ -66,12 +66,12 @@ TFile* getSampleFile(PythiaAnalysisConfiguration* conf, int irap, int iPtRange, 
   return f;
 }
 
-TDirectory* getSampleDirectory(PythiaAnalysisConfiguration* conf, TFile* file, TString& taskname, int irap, const char* cname)
+TDirectory* getSampleDirectory(PythiaAnalysisConfiguration* conf, TFile* file, TString& taskname, int irap, int iptrange, const char* cname)
 {
   TDirectory* dir = nullptr;
 
   std::string dirname = TString::Format("%s%s_%s",
-                                        TString::Format(conf->outputfname.c_str(), int(conf->abs_y[irap] * 10)).Data(),
+                                        TString::Format(conf->outputfname.c_str(), int(conf->abs_y[irap] * 10), int(conf->ptRangeLows[iptrange] * 10), int(conf->ptRangeUps[iptrange] * 10)).Data(),
                                         taskname.Data(),
                                         cname)
                           .Data();
@@ -160,7 +160,7 @@ TList* extractMeanAndStDevFromSubSets(const TObjArray& listsarray, const TString
 }
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
-TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, std::string evfltr, int isample)
+TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, int iptrange, std::string evfltr, int isample)
 {
   std::string feeddownrej = "none";
   char* cname = new char[64];
@@ -206,7 +206,7 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   else
     eventanalyzer->setReportLevel(MessageLogger::Info);
 
-  TDirectory* mydir = getSampleDirectory(conf, samplefile, taskName, irap, cname);
+  TDirectory* mydir = getSampleDirectory(conf, samplefile, taskName, irap, iptrange, cname);
   if (mydir == nullptr)
     return nullptr;
 
@@ -469,9 +469,9 @@ int main(int argc, char* argv[])
       Warning("statUncertain", "Processing sample %d for centrality %s", isamp, ctitle);
       TList* list;
       if (conf->inrapidity) {
-        list = extractSampleResults<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ef, isamp);
+        list = extractSampleResults<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp);
       } else {
-        list = extractSampleResults<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ef, isamp);
+        list = extractSampleResults<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp);
       }
 
       for (Int_t ilst = 0; ilst < nmainlists; ++ilst) {

@@ -53,8 +53,8 @@ OUTFNAME=`sed -n '/"outputfname"\s*:\s*"\(.*\)",/p' ${CONFIGURATIONFILE} | sed '
 TASKNAME=`sed -n '/"taskname"\s*:\s*"\(.*\)",/p' ${CONFIGURATIONFILE} | sed 's/\s*"taskname"\s*:\s*"\(.*\)",/\1/'`
 
 # Extract the rapidities/pseudorapidities
-if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "abs\_y" "CRAPIDITIES"; then
-    echo "Failed to extract 'abs\_y'" >&2
+if ! extract_json_scaled_num_array "$CONFIGURATIONFILE" "abs_y" "CRAPIDITIES"; then
+    echo "Failed to extract 'abs_y'" >&2
     exit 1
 fi
 # Extract the pT ranges
