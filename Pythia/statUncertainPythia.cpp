@@ -344,8 +344,8 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
 /////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[])
 {
-  if (argc > 5 or argc < 5) {
-    Fatal("main", "Wrong number of arguments. Use statUncertain prodtag option rapix evtfilterix");
+  if (argc > 6 or argc < 6) {
+    Fatal("main", "Wrong number of arguments. Use statUncertain prodtag option rapix ptrangeix evtfilterix");
   }
 
   std::string prodtag = argv[1];
