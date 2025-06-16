@@ -36,19 +36,14 @@ add_executable(RunBestSimulationTwoParticlesDiff RunBestSimulationTwoParticlesDi
 target_include_directories(RunBestSimulationTwoParticlesDiff PUBLIC Base WacBest)
 target_link_libraries(RunBestSimulationTwoParticlesDiff Base WacBest ${ROOT_LIBRARIES} ${CMAKE_DL_LIBS})
 
-# add_executable(RunBestSimulationTwoParticlesDiffME RunBestSimulationTwoParticlesDiffME.cpp)
-# target_include_directories(RunBestSimulationTwoParticlesDiffME PUBLIC Base WacBest)
-# target_link_libraries(RunBestSimulationTwoParticlesDiffME Base WacBest ${ROOT_LIBRARIES} ${CMAKE_DL_LIBS})
-
-# add_executable(statUncertainBest statUncertainBest.cpp)
-# target_include_directories(statUncertainBest PUBLIC Base WacBest ${EXTRA_INCLUDES})
-# target_link_libraries(statUncertainBest Base WacBest ${WAC_ROOT_LIBRARIES} ${CMAKE_DL_LIBS})
+add_executable(statUncertainBest statUncertainBest.cpp)
+target_include_directories(statUncertainBest PUBLIC Base WacBest ${EXTRA_INCLUDES})
+target_link_libraries(statUncertainBest Base WacBest ${WAC_ROOT_LIBRARIES} ${CMAKE_DL_LIBS})
 
 install(FILES  "${CMAKE_CURRENT_BINARY_DIR}/libBest.rootmap" "${CMAKE_CURRENT_BINARY_DIR}/libBest_rdict.pcm" DESTINATION "$ENV{WAC_LIB}")
 install(TARGETS WacBest  LIBRARY DESTINATION "$ENV{WAC_LIB}") 
 install(TARGETS TestBestAnalysisConfiguration DESTINATION "$ENV{WAC_BIN}")
 install(TARGETS RunBestSimulationSingleParticles DESTINATION "$ENV{WAC_BIN}")
 install(TARGETS RunBestSimulationTwoParticlesDiff DESTINATION "$ENV{WAC_BIN}")
-# install(TARGETS RunBestSimulationTwoParticlesDiffME DESTINATION "$ENV{WAC_BIN}")
-# install(TARGETS statUncertainBest DESTINATION "$ENV{WAC_BIN}")
+install(TARGETS statUncertainBest DESTINATION "$ENV{WAC_BIN}")
 
