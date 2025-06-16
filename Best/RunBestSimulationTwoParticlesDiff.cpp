@@ -12,6 +12,7 @@
 #include "Event.hpp"
 #include "AnalysisConfiguration.hpp"
 #include "TwoPartDiffCorrelationAnalyzer.hpp"
+#include "TwoPartDiffCorrelationAnalyzerME.hpp"
 #include "ParticleAnalyzer.hpp"
 #include "EventLoop.hpp"
 #include "EventFilter.hpp"
@@ -23,6 +24,7 @@
 int nAnalysisTasks = 200;
 Task** analysisTasks;
 int iTask = 0;
+bool doME = false;
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
 bool configureTasks(const BestAnalysisConfiguration* conf,
@@ -48,7 +50,11 @@ bool configureTasks(const BestAnalysisConfiguration* conf,
   TString taskName = TString::Format(conf->taskname.c_str(), "Pairs");
 
   /* the two-particle analyzer */
-  analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzer<r, options>(taskName, ac, event, eventFilter, particleFilters);
+  if (doME) {
+    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(taskName, ac, event, eventFilter, particleFilters);
+  } else {
+    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzer<r, options>(taskName, ac, event, eventFilter, particleFilters);
+  }
 
   /* single particle analysis filters and task if any */
   if (conf->tsingles.size() > 0) {
@@ -70,12 +76,13 @@ bool configureTasks(const BestAnalysisConfiguration* conf,
 
 int main(int argc, char* argv[])
 {
-  if (argc != 4) {
-    Fatal("main", "Wrong number of arguments. Use RunBestSimulationTwoParticleDiff filename noofevents jobix");
+  if (argc != 5) {
+    Fatal("main", "Wrong number of arguments. Use RunBestSimulationTwoParticleDiff filename noofevents me/nome jobix");
   }
   const char* filename = argv[1];
   int nEventsToRead = stoi(argv[2]);
-  int jobix = stoi(argv[3]);
+  int jobix = stoi(argv[4]);
+  TString parME = TString(argv[3]);
 
   time_t begin, end; // time_t is a datatype to store time values.
   time(&begin);      // note time before execution
@@ -194,6 +201,7 @@ int main(int argc, char* argv[])
   bool oldstatus = TH1::AddDirectoryStatus();
   TH1::AddDirectory(false);
 
+  doME = parME.EqualTo("me");
   analysisTasks = new Task*[nAnalysisTasks];
   iTask = 0;
 
