@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ $# -gt 4 ]; then
-  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
+if [ $# -gt 5 ]; then
+  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
   exit 1
 fi
 
-if [ $# -lt 3 ]; then
-  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
+if [ $# -lt 4 ]; then
+  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
   exit 1
 fi
 
@@ -18,15 +18,12 @@ utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/utilities.
 BASEDIRECTORY=$1
 NMAINJOBS=$2
 NSUBJOBS=$3
-MIXEDEVENTS=${4:-NO}
-if [ $MIXEDEVENTS != "me" ] && [ $MIXEDEVENTS != "NO" ]
+NEVENTSPERJOB=$4
+MIXEDEVENTS=${5:-nome}
+if [ $MIXEDEVENTS != "me" ] && [ $MIXEDEVENTS != "nome" ]
 then
-  echo "usage: batchRunPythiaCorrelations basedirectory nmainjobs nsubjobs {me}"
+  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
   exit 1
-fi
-if [ $MIXEDEVENTS == "me" ]
-then
-  MIXEDEVENTS=YES
 fi
 
 PRODUCTIONDIRECTORY=OUT`date +%Y%m%d%H%M`
@@ -38,6 +35,9 @@ then
   exit 1	
 fi
 
+CLUSTERMODELWAC=/lustre/alice/users/$USER/CLUSTERMODELWAC
+HYPERSURFACE=/lustre/alice/users/vgonzale/HYPERSURFACES/C70-80/
+
 mkdir $BASEDIRECTORY/$PRODUCTIONDIRECTORY
 echo Production $PRODUCTIONDIRECTORY
 
@@ -45,7 +45,8 @@ mkdir $BASEDIRECTORY/$PRODUCTIONDIRECTORY/log
 mkdir $BASEDIRECTORY/$PRODUCTIONDIRECTORY/log/merge
 
 # let's preserve the configuration
-CONFIGURATIONFILE=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/configuration.json
+# this has to find its final source
+CONFIGURATIONFILE=$CLUSTERMODELWAC/Best/configuration.json
 cp $CONFIGURATIONFILE $BASEDIRECTORY/$PRODUCTIONDIRECTORY
 
 # and extract needed information
@@ -84,11 +85,11 @@ do
   cp $CONFIGURATIONFILE $WORKINGDIRECTORY/
 
   # submit the job array
-  cmd="sbatch -J batch__PythiaCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --time=03:00:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runPythiaCorrelations.sh $MIXEDEVENTS"
+  cmd="sbatch -J batch__BestCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --time=01:30:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err $CLUSTERMODELWAC/Clusters/GSI/runBestSamplerCorrelations.sh $WORKINGDIRECTORY $HYPERSURFACE $NEVENTSPERJOB $MIXEDEVENTS"
   ARRAYJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
   echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
   echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
-
+  
   # submit the merging of the job array results per rapidity
   for crap in ${CRAPIDITIES}
   do
@@ -129,7 +130,7 @@ done
 sleep 2s
 
 # submit the extraction of results with statistical uncertainties
-cmd="sbatch -J waitStatsUncertain --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --time=01:00:00 -d afterany${MERGEJOBSIDS} -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/batchRunStatsUncertain.sh pythia ${BASEDIRECTORY} ${PRODUCTIONDIRECTORY}"
+cmd="sbatch -J waitStatsUncertain --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --time=01:00:00 -d afterany${MERGEJOBSIDS} -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/WaitStatsUncertainJob.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/batchRunStatsUncertain.sh best ${BASEDIRECTORY} ${PRODUCTIONDIRECTORY}"
 JOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
 echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
 echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log

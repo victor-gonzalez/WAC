@@ -6,15 +6,14 @@ MIXEDEVENTS=$1
 ulimit -c 0
 echo ulimit `ulimit -c`
 
-# setting the root and pythia scenario
-export ALIEN_SITE=GSI
-LATEST="VO_ALICE@AliGenerators::v20241101-1"
-export ALIPHYSICS_VERSION=$LATEST
+# setting the proper environment scenario
+NEEDED="VO_ALICE@O2Physics::daily-20250614-0000-1"
 
-source <( /cvmfs/alice.cern.ch/bin/alienv printenv $LATEST)
-echo $LATEST
+source <( /cvmfs/alice.cern.ch/bin/alienv printenv $NEEDED)
+echo $NEEDED
 
-export PYTHIA8=/cvmfs/alice.cern.ch/el7-x86_64/Packages/pythia/v8311-18
+export PYTHIA8=/cvmfs/alice.cern.ch/el9-x86_64/Packages/pythia/v8315-alice1-1
+
 
 ####################################################################################################
 echo "Setting up WAC"

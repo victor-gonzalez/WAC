@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ $# -gt 2 ]; then
-  echo "usage: batchRunStatUncertain basedirectory productiondirectory"
+if [ $# -gt 3 ]; then
+  echo "usage: batchRunStatUncertain pythia/best basedirectory productiondirectory"
   exit 1
 fi
 
-if [ $# -lt 2 ]; then
-  echo "usage: batchRunStatUncertain basedirectory productiondirectory"
+if [ $# -lt 3 ]; then
+  echo "usage: batchRunStatUncertain pythia/best basedirectory productiondirectory"
   exit 1
 fi
 
@@ -15,8 +15,9 @@ utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/utilities.
 [ ! -f "$utilities_file" ] && { echo "Error: $utilities_file not found." >&2; exit 1; }
 . "$utilities_file"
 
-BASEDIRECTORY=$1
-PRODUCTIONDIRECTORY=$2
+WHICHGEN=$1
+BASEDIRECTORY=$2
+PRODUCTIONDIRECTORY=$3
 
 if [ ! -d $BASEDIRECTORY/$PRODUCTIONDIRECTORY ]
 then
@@ -73,7 +74,7 @@ do
       fi
       echo Submitting multiplicity class ${EVENTFILTERS[j]}
       JOBNAME=`printf "waitStatsUncertain_%03d_%02d_%03d" ${i} ${iPtRange} ${j}`
-      cmd="sbatch -J ${JOBNAME} ${DEPENDENCY} --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --mem-per-cpu=8000 --time=07:00:00 -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runStatsUncertain.sh ${PRODUCTIONTAG} ${i} ${iPtRange} ${j}"
+      cmd="sbatch -J ${JOBNAME} ${DEPENDENCY} --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --mem-per-cpu=8000 --time=07:00:00 -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runStatsUncertain.sh ${WHICHGEN} ${PRODUCTIONTAG} ${i} ${iPtRange} ${j}"
       JOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
       echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
       echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
