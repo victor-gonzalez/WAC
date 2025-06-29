@@ -484,7 +484,7 @@ int main(int argc, char* argv[])
       }
       delete list;
     } else {
-      Fatal("statUncertainPythia::main", "Cannot open rapidity %d sample file for sample %d. ABORTING!!!", ixrap, isamp);
+      Fatal("statUncertainBest::main", "Cannot open rapidity %d sample file for sample %d. ABORTING!!!", ixrap, isamp);
     }
     samplefile->Close();
     delete samplefile;
@@ -499,7 +499,7 @@ int main(int argc, char* argv[])
   for (int ipart = 0; ipart < npart; ++ipart) {
     for (int jpart = 0; jpart < npart; ++jpart) {
       int ilst = ipart * npart + jpart;
-      TString pattern = TString::Format("Pythia8_%s%s%%s_D%sDphi_shft_%s", partname[ipart].c_str(), partname[jpart].c_str(), raporeta, ctitle);
+      TString pattern = TString::Format("Best_%s%s%%s_D%sDphi_shft_%s", partname[ipart].c_str(), partname[jpart].c_str(), raporeta, ctitle);
       TList* meanhlist = extractMeanAndStDevFromSubSets(pairslists[ilst], pattern, corrfname);
       for (int ixh = 0; ixh < meanhlist->GetEntries(); ixh++) {
         meanhlist->At(ixh)->Write();
@@ -511,7 +511,7 @@ int main(int argc, char* argv[])
     int ilst = npart * npart;
     for (int ipart = 0; ipart < npart; ++ipart) {
       for (int jpart = 0; jpart < npart; ++jpart) {
-        TString pattern = TString::Format("Pythia8_%s%s%%s_D%sDphi_shft_me_%s", partname[ipart].c_str(), partname[jpart].c_str(), raporeta, ctitle);
+        TString pattern = TString::Format("Best_%s%s%%s_D%sDphi_shft_me_%s", partname[ipart].c_str(), partname[jpart].c_str(), raporeta, ctitle);
         TList* meanhlist = extractMeanAndStDevFromSubSets(pairslists[ilst++], pattern, corrfname);
         for (int ixh = 0; ixh < meanhlist->GetEntries(); ixh++) {
           meanhlist->At(ixh)->Write();
@@ -528,7 +528,7 @@ int main(int argc, char* argv[])
   }
   for (int ipart = 0; ipart < int(npart / 2); ++ipart) {
     for (int jpart = 0; jpart < int(npart / 2); ++jpart) {
-      TString pattern = TString::Format("Pythia8_%.2s%.2s%%s_D%sDphi_shft_%s", partname[ipart * 2].c_str(), partname[jpart * 2].c_str(), raporeta, ctitle);
+      TString pattern = TString::Format("Best_%.2s%.2s%%s_D%sDphi_shft_%s", partname[ipart * 2].c_str(), partname[jpart * 2].c_str(), raporeta, ctitle);
       TList* meanhlist = extractMeanAndStDevFromSubSets(pairslists[ilst++], pattern, bfnames);
       for (int ixh = 0; ixh < meanhlist->GetEntries(); ixh++) {
         meanhlist->At(ixh)->Write();
@@ -549,7 +549,7 @@ int main(int argc, char* argv[])
   /* we keep tracking with the previous ilst content */
   for (int ipart = 0; ipart < npart; ++ipart) {
     for (int jpart = 0; jpart < npart - (ipart + 1); ++jpart) {
-      TString pattern = TString::Format("Pythia8_%s%s%%s_D%sDphi_shft_%s", partname[ipart].c_str(), partname[ipart + 1 + jpart].c_str(), raporeta, ctitle);
+      TString pattern = TString::Format("Best_%s%s%%s_D%sDphi_shft_%s", partname[ipart].c_str(), partname[ipart + 1 + jpart].c_str(), raporeta, ctitle);
       TList* meanhlist = extractMeanAndStDevFromSubSets(pairslists[ilst++], pattern, cfnamecomb);
       for (int ixh = 0; ixh < meanhlist->GetEntries(); ixh++) {
         meanhlist->At(ixh)->Write();
