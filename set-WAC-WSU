@@ -1,0 +1,12 @@
+export ATWSU
+####################################################################################################
+echo "Setting up WAC"
+####################################################################################################
+export WAC_ROOT=`pwd`
+export WAC_SOURCE="$WAC_ROOT"
+export WAC_BIN="$WAC_ROOT/bin"
+export WAC_LIB="$WAC_ROOT/lib"
+export PATH="$WAC_BIN:$PATH"
+export DYLD_LIBRARY_PATH="$WAC_LIB:$DYLD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$WAC_LIB:$LD_LIBRARY_PATH"
+
