@@ -20,7 +20,7 @@ TEMPIPENAME=$PIPENAME.unfinished
 mkfifo $PIPEDIRECTORY/$TEMPIPENAME
 
 # Pass base filename to original_app
-$CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runSamplerAndSmash.sh -c $CONFIGFILE -o "General: {Nevents: $NUMBEROFEVENTS}" -o "Output_Directory: $PIPEDIRECTORY" -o "Output_Kind: namedpipe" -o "HyperSurface: $HYPERSURFACE"  || true &
+$CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runSamplerAndSmash.sh -c $CONFIGFILE -o "General: {Nevents: $NUMBEROFEVENTS}" -o "Output_Directory: $PIPEDIRECTORY" -o "Output_Kind: namedpipe" -o "HyperSurface: $HYPERSURFACE/surface.dat"  || true &
 
 # run the data collecting engine
 $CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runBestDataCollectingEngine.sh $PIPEDIRECTORY/$TEMPIPENAME $NUMBEROFEVENTS $ME ${SLURM_ARRAY_TASK_ID}
