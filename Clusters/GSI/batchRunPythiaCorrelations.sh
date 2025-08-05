@@ -11,7 +11,7 @@ if [ $# -lt 3 ]; then
 fi
 
 # incorporate shell utilities
-utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/utilities.sh
+utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/utilities.sh
 [ ! -f "$utilities_file" ] && { echo "Error: $utilities_file not found." >&2; exit 1; }
 . "$utilities_file"
 

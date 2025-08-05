@@ -11,7 +11,7 @@ if [ $# -lt 4 ]; then
 fi
 
 # incorporate shell utilities
-utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/GSI/utilities.sh
+utilities_file=/lustre/alice/users/$USER/CLUSTERMODELWAC/Clusters/utilities.sh
 [ ! -f "$utilities_file" ] && { echo "Error: $utilities_file not found." >&2; exit 1; }
 . "$utilities_file"
 
@@ -85,7 +85,7 @@ do
   cp $CONFIGURATIONFILE $WORKINGDIRECTORY/
 
   # submit the job array
-  cmd="sbatch -J batch__BestCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --time=01:30:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err $CLUSTERMODELWAC/Clusters/GSI/runBestSamplerCorrelations.sh $WORKINGDIRECTORY $HYPERSURFACE $NEVENTSPERJOB $MIXEDEVENTS"
+  cmd="sbatch -J batch__BestCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --mem-per-cpu=8000 --time=01:30:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err $CLUSTERMODELWAC/Clusters/GSI/runBestSamplerCorrelations.sh $WORKINGDIRECTORY $HYPERSURFACE $NEVENTSPERJOB $MIXEDEVENTS"
   ARRAYJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
   echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
   echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
