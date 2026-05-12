@@ -2,7 +2,9 @@
 WORKINGDIRECTORY=$1
 HYPERSURFACE=$2
 NUMBEROFEVENTS=$3
-ME=$4
+SAMPLER=$4
+PATCHENERGY=$5
+ME=$6
 
 CLUSTERMODELWAC=/lustre/alice/users/$USER/CLUSTERMODELWAC
 BESTDIRECTORY=/lustre/alice/users/$USER/BESTWRAPPER
@@ -20,7 +22,7 @@ TEMPIPENAME=$PIPENAME.unfinished
 mkfifo $PIPEDIRECTORY/$TEMPIPENAME
 
 # Pass base filename to original_app
-$CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runSamplerAndSmash.sh -c $CONFIGFILE -o "General: {Nevents: $NUMBEROFEVENTS}" -o "Output_Directory: $PIPEDIRECTORY" -o "Output_Kind: namedpipe" -o "HyperSurface: $HYPERSURFACE/surface.dat"  || true &
+$CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runSamplerAndSmash.sh -c $CONFIGFILE -o "General: {Nevents: $NUMBEROFEVENTS}" -o "Sampler: {Type: $SAMPLER}" -o "Sampler: {Microcanonical: {PatchEnergy: $PATCHENERGY}}" -o "Output_Directory: $PIPEDIRECTORY" -o "Output_Kind: namedpipe" -o "HyperSurface: $HYPERSURFACE/surface.dat"  || true &
 
 # run the data collecting engine
 $CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh $CLUSTERMODELWAC/Clusters/GSI/runBestDataCollectingEngine.sh $PIPEDIRECTORY/$TEMPIPENAME $NUMBEROFEVENTS $ME ${SLURM_ARRAY_TASK_ID}

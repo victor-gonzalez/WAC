@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ $# -gt 5 ]; then
-  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
+if [ $# -gt 8 ]; then
+  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob sampler patchenergy {me/nome}"
   exit 1
 fi
 
-if [ $# -lt 4 ]; then
-  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
+if [ $# -lt 7 ]; then
+  echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob sampler patchenergy {me/nome}"
   exit 1
 fi
 
@@ -19,7 +19,10 @@ BASEDIRECTORY=$1
 NMAINJOBS=$2
 NSUBJOBS=$3
 NEVENTSPERJOB=$4
-MIXEDEVENTS=${5:-nome}
+SAMPLER=$5
+PATCHENERGY=$6
+BESTTIME=$7
+MIXEDEVENTS=${8:-nome}
 if [ $MIXEDEVENTS != "me" ] && [ $MIXEDEVENTS != "nome" ]
 then
   echo "usage: batchRunBestSamplerCorrelations basedirectory nmainjobs nsubjobs neventspersubjob {me/nome}"
@@ -85,7 +88,7 @@ do
   cp $CONFIGURATIONFILE $WORKINGDIRECTORY/
 
   # submit the job array
-  cmd="sbatch -J batch__BestCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --mem-per-cpu=8000 --time=01:30:00 -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err $CLUSTERMODELWAC/Clusters/GSI/runBestSamplerCorrelations.sh $WORKINGDIRECTORY $HYPERSURFACE $NEVENTSPERJOB $MIXEDEVENTS"
+  cmd="sbatch -J batch__BestCorr --array=1-${NSUBJOBS} --chdir=${WORKINGDIRECTORY} --mem-per-cpu=16000 --time=${BESTTIME} -o ${WORKINGDIRECTORY}/log/Job_%A_%a.out -e ${WORKINGDIRECTORY}/log/Job_%A_%a.err $CLUSTERMODELWAC/Clusters/GSI/runBestSamplerCorrelations.sh $WORKINGDIRECTORY $HYPERSURFACE $NEVENTSPERJOB $SAMPLER $PATCHENERGY $MIXEDEVENTS"
   ARRAYJOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
   echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
   echo "" >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log
