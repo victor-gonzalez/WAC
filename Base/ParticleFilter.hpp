@@ -9,6 +9,9 @@
  **********************************************************************/
 #ifndef WAC_ParticleFilter
 #define WAC_ParticleFilter
+#include <string>
+#include <vector>
+#include "TError.h"
 #include "TString.h"
 #include "Particle.hpp"
 #include "AnalysisConfiguration.hpp"
@@ -57,10 +60,41 @@ class ParticleFilter
                  double maxRapPseudo);
   virtual ~ParticleFilter();
   bool accept(Particle& particle);
+  /// Identity-only acceptance: matches the (species, charge) pair but ignores
+  /// feedDown and the kinematic window.  Used by DetectorEffectsTask to
+  /// classify a particle into the species index defined by the analysis
+  /// track-name vocabulary (e.g. `conf->tpairs`), INDEPENDENTLY of the
+  /// per-analyzer acceptance cuts (which vary across the EventLoop's
+  /// analyzers but should not affect the detector's species-level
+  /// efficiency lookup).
+  bool acceptIdentity(Particle& particle);
   TString getName();
   TString getTitle();
 
   static int getAcceptedIndex(std::vector<ParticleFilter*>, Particle& particle);
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Track-name vocabulary helpers (single source of truth).
+  //
+  // The analysis-config classes (PythiaAnalysisConfiguration,
+  // BestAnalysisConfiguration, ...) hold a `tpairs` vector of short
+  // track-name strings ("AllP", "PiP", "La", "Gam", ...) that designate
+  // species + charge combinations.  These helpers turn those names into
+  // the (SpeciesSelection, ChargeSelection) the filter constructor
+  // expects and provide an identity-only classification entry point used
+  // by DetectorEffectsTask.
+  ////////////////////////////////////////////////////////////////////////////
+  static SpeciesSelection speciesFor(const std::string& name);
+  static ChargeSelection chargeFor(const std::string& name);
+  static FeedDownRejection feedDownFor(const std::string& name);
+
+  /// Identity-only acceptance from a track-name string (combines
+  /// speciesFor/chargeFor with the in-place identity check).  No
+  /// ParticleFilter object is constructed.
+  static bool acceptIdentity(const std::string& trackName, Particle& particle);
+  /// Returns the index of the first track name in `trackNames` whose
+  /// (species, charge) identity matches the particle, or -1 if none.
+  static int getIndex(const std::vector<std::string>& trackNames, Particle& particle);
 
   //////////////////////////////////////////////////////////////////////////////////////////
   // Data Members
@@ -193,6 +227,169 @@ inline int ParticleFilter<r>::getAcceptedIndex(std::vector<ParticleFilter*> filt
 {
   for (uint i = 0; i < filters.size(); ++i) {
     if (filters[i]->accept(particle)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Identity-only acceptance: matches species + charge while ignoring feedDown and the
+// kinematic window.  Same first two switch blocks as accept(), but returns immediately
+// after them rather than proceeding to the feedDown / pt / rapidity checks.
+//////////////////////////////////////////////////////////////////////////////////////////
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline bool ParticleFilter<r>::acceptIdentity(Particle& particle)
+{
+  bool accepting = true;
+  double charge = particle.charge;
+  switch (chargeRequested) {
+    case AllCharges:
+      accepting = true;
+      break;
+    case Negative:
+      accepting = (charge < 0);
+      break;
+    case Positive:
+      accepting = (charge > 0);
+      break;
+    case Charged:
+      accepting = (charge != 0);
+      break;
+    case Neutral:
+      accepting = (charge == 0);
+      break;
+  }
+  if (!accepting)
+    return false;
+  double pid = TMath::Abs(particle.pid);
+  switch (pidRequested) {
+    case AllSpecies:
+      return true;
+    case Photon:
+      return (pid == 22);
+    case Lepton:
+      return (pid == 11) || (pid == 12) || (pid == 13) || (pid == 14) || (pid == 15) || (pid == 16);
+    case Electron:
+      return (pid == 11);
+    case Muon:
+      return (pid == 13);
+    case Hadron:
+      return (pid == 211) || (pid == 321) || (pid == 2212);
+    case Pion:
+      return (pid == 111) || (pid == 211);
+    case Kaon:
+      return (pid == 321) || (pid == 311) || (pid == 310);
+    case KaonL:
+      return (pid == 130);
+    case Baryon:
+      return (pid == 2212) || (pid == 2112) || (pid == 3122);
+    case Proton:
+      return (pid == 2212);
+    case Lambda:
+      return (particle.pid == 3122);
+    case ALambda:
+      return (particle.pid == -3122);
+  }
+  return false;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Track-name vocabulary helpers (single source of truth).  Each track-name string
+// designates a (species, charge) pair; the suffix carries the charge:
+//   P = positive   M = negative   C = charged   0 = neutral   A = all charges
+// La and ALa are neutral by construction; Gam is the photon.  Unknown names abort with
+// ::Fatal (matches the previous behaviour in PythiaAnalysisConfiguration::particleFilter).
+//////////////////////////////////////////////////////////////////////////////////////////
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline typename ParticleFilter<r>::SpeciesSelection ParticleFilter<r>::speciesFor(const std::string& name)
+{
+  if (name == "PiP" || name == "PiM" || name == "PiC" || name == "Pi0" || name == "PiA")
+    return Pion;
+  if (name == "KaP" || name == "KaM" || name == "KaC" || name == "Ka0" || name == "KaA")
+    return Kaon;
+  if (name == "PrP" || name == "PrM" || name == "PrC" || name == "PrA")
+    return Proton;
+  if (name == "La")
+    return Lambda;
+  if (name == "ALa")
+    return ALambda;
+  if (name == "Gam")
+    return Photon;
+  if (name == "AllP" || name == "AllM" || name == "AllC" || name == "All0" || name == "AllA")
+    return AllSpecies;
+  ::Fatal("ParticleFilter::speciesFor", "Particle species '%s' not supported. Please fix the analysis configuration.", name.c_str());
+  return AllSpecies;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline typename ParticleFilter<r>::ChargeSelection ParticleFilter<r>::chargeFor(const std::string& name)
+{
+  if (name == "PiP" || name == "KaP" || name == "PrP" || name == "AllP")
+    return Positive;
+  if (name == "PiM" || name == "KaM" || name == "PrM" || name == "AllM")
+    return Negative;
+  if (name == "PiC" || name == "KaC" || name == "PrC" || name == "AllC")
+    return Charged;
+  if (name == "Pi0" || name == "Ka0" || name == "All0" || name == "La" || name == "ALa" || name == "Gam")
+    return Neutral;
+  if (name == "PiA" || name == "KaA" || name == "PrA" || name == "AllA")
+    return AllCharges;
+  ::Fatal("ParticleFilter::chargeFor", "Particle species '%s' not supported. Please fix the analysis configuration.", name.c_str());
+  return AllCharges;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline typename ParticleFilter<r>::FeedDownRejection ParticleFilter<r>::feedDownFor(const std::string& name)
+{
+  if (name == "none")
+    return None;
+  if (name == "all")
+    return AllResonances;
+  ::Fatal("ParticleFilter::feedDownFor", "Resonance suppression '%s' not supported. Please fix the analysis configuration.", name.c_str());
+  return None;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline bool ParticleFilter<r>::acceptIdentity(const std::string& trackName, Particle& particle)
+{
+  /* inline (species, charge) identity check without constructing a ParticleFilter */
+  const ChargeSelection charge = chargeFor(trackName);
+  bool chargeOk = false;
+  switch (charge) {
+    case AllCharges: chargeOk = true; break;
+    case Negative:   chargeOk = (particle.charge <  0); break;
+    case Positive:   chargeOk = (particle.charge >  0); break;
+    case Charged:    chargeOk = (particle.charge != 0); break;
+    case Neutral:    chargeOk = (particle.charge == 0); break;
+  }
+  if (!chargeOk)
+    return false;
+  const SpeciesSelection species = speciesFor(trackName);
+  const double pid = TMath::Abs(particle.pid);
+  switch (species) {
+    case AllSpecies: return true;
+    case Photon:     return (pid == 22);
+    case Lepton:     return (pid == 11) || (pid == 12) || (pid == 13) || (pid == 14) || (pid == 15) || (pid == 16);
+    case Electron:   return (pid == 11);
+    case Muon:       return (pid == 13);
+    case Hadron:     return (pid == 211) || (pid == 321) || (pid == 2212);
+    case Pion:       return (pid == 111) || (pid == 211);
+    case Kaon:       return (pid == 321) || (pid == 311) || (pid == 310);
+    case KaonL:      return (pid == 130);
+    case Baryon:     return (pid == 2212) || (pid == 2112) || (pid == 3122);
+    case Proton:     return (pid == 2212);
+    case Lambda:     return (particle.pid ==  3122);
+    case ALambda:    return (particle.pid == -3122);
+  }
+  return false;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+inline int ParticleFilter<r>::getIndex(const std::vector<std::string>& trackNames, Particle& particle)
+{
+  for (uint i = 0; i < trackNames.size(); ++i) {
+    if (acceptIdentity(trackNames[i], particle)) {
       return i;
     }
   }

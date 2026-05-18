@@ -39,6 +39,7 @@ set(SOURCE_FILES
   ParticlePairHistos.cpp
   ParticlePairDiffHistos.cpp
   TrackAndPairConfiguration.cpp
+  DetectorEffectsTask.cpp
   )
 
 set(HEADER_FILES
@@ -74,6 +75,7 @@ set(HEADER_FILES
   ParticlePairHistos.hpp
   ParticlePairDiffHistos.hpp
   TrackAndPairConfiguration.hpp
+  DetectorEffectsTask.hpp
   )
 
 root_generate_dictionary(G__Base ${HEADER_FILES} LINKDEF BaseLinkDef.h)

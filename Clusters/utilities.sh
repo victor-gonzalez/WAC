@@ -113,3 +113,55 @@ except json.JSONDecodeError:
     # Store the output in the specified variable
     printf -v "$var_name" "%s" "$output"
 }
+
+extract_json_bool() {
+    local json_file="$1"
+    local key_name="$2"
+    local var_name="$3"  # Name of the variable to store the result ("true"/"false")
+    local output
+
+    # Check if python3 is installed
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "Error: python3 is not installed." >&2
+        return 1
+    fi
+
+    # Check if the JSON file exists
+    if [ ! -f "$json_file" ]; then
+        echo "Error: JSON file '$json_file' not found." >&2
+        return 1
+    fi
+
+    # Check if var_name is provided
+    if [ -z "$var_name" ]; then
+        echo "Error: Variable name not provided." >&2
+        return 1
+    fi
+
+    # Use Python to extract the boolean. A missing key is treated as false so
+    # an old configuration.json (without the detector-effects key) keeps working.
+    output=$(python3 -c "
+import json
+import sys
+try:
+    with open('$json_file', 'r') as f:
+        data = json.load(f)
+    val = data.get('$key_name', False)
+    if not isinstance(val, bool):
+        print(f\"Error: Key '$key_name' is not a boolean in $json_file.\", file=sys.stderr)
+        sys.exit(1)
+    print('true' if val else 'false')
+except json.JSONDecodeError:
+    print(f\"Error: Invalid JSON format in $json_file.\", file=sys.stderr)
+    sys.exit(1)
+" 2>&1)
+
+    # Check if Python returned an error
+    if [ $? -ne 0 ]; then
+        echo "$output" >&2
+        return 1
+    fi
+
+    # Store the output in the specified variable
+    printf -v "$var_name" "%s" "$output"
+}

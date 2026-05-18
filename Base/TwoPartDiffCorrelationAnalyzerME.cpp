@@ -451,9 +451,10 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
       }
       continue;
     }
-    particle_Histos[ixID]->fill<r>(*particle, 1.0);
+    /* per-particle weight: 1.0 for the raw pass, 1/eff(pT) for the detector-effects pass */
+    particle_Histos[ixID]->fill<r>(*particle, particle->weight);
     nAccepted[ixID] += 1;
-    /* store it in the event pool assigned factory */
+    /* store it in the event pool assigned factory (MiniParticle copies weight from Particle) */
     *(eventstore->getNextObject()) = *particle;
     if (reportDebug()) {
       cout << "  accepted as: " << particleFilters[particle->ixID]->getName() << endl;
@@ -477,7 +478,7 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
         if (ixID2 < 0)
           continue;
 
-        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, 1.0, 1.0);
+        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight);
         nAcceptedPairs[ixID1][ixID2] += 1;
       }
       /* fill the mixed event histograms if pool full */
@@ -487,8 +488,8 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
         while ((mixevt = eventPool.getNextIndex(ixevt)) != nullptr) {
           for (int iMiniParticle = 0; iMiniParticle < mixevt->getCurrentSize(); ++iMiniParticle) {
             MiniParticle& miniParticle = *mixevt->getObjectAt(iMiniParticle);
-            pairs_Histos_me[ixID1][miniParticle.ixID]->fill<r, options>(particle1, miniParticle, 1.0, 1.0);
-            pairs_Histos_me[miniParticle.ixID][ixID1]->fill<r, options>(miniParticle, particle1, 1.0, 1.0);
+            pairs_Histos_me[ixID1][miniParticle.ixID]->fill<r, options>(particle1, miniParticle, particle1.weight, miniParticle.weight);
+            pairs_Histos_me[miniParticle.ixID][ixID1]->fill<r, options>(miniParticle, particle1, miniParticle.weight, particle1.weight);
           }
         }
       }

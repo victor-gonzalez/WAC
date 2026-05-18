@@ -1,0 +1,112 @@
+// Author: Victor Gonzalez, 2026
+
+/***********************************************************************
+ * Copyright (C) 2026.
+ * All rights reserved.
+ * Based on the ROOT package and environment
+ *
+ * For the licensing terms see LICENSE.
+ **********************************************************************/
+
+#ifndef WAC_DetectorEffectsTask
+#define WAC_DetectorEffectsTask
+
+#include <string>
+#include <vector>
+#include "TH1.h"
+#include "TRandom3.h"
+#include "Task.hpp"
+#include "Event.hpp"
+#include "ParticleFilter.hpp"
+#include "AnalysisConfiguration.hpp"
+
+///////////////////////////////////////////////////////////////////////////////
+// DetectorEffectsTask<r>
+//
+// Task inserted in the EventLoop between the event generator and the analysis
+// tasks of the "reconstructed" pass.  Reads the singleton (raw) Event filled
+// by the generator and produces a parallel "reconstructed" Event (an Event
+// instance carrying its own Factory<Particle>, created via
+// Event::createReconstructed()) by:
+//
+//   1) Efficiency stage. Each raw particle is classified by running it
+//      through ParticleFilter<r>::getIndex(trackNames, p), which iterates
+//      the `tpairs` track-name strings (handed in from the analysis
+//      configuration) and returns the first identity-matching index
+//      (species + charge only; kinematic and feedDown cuts are ignored,
+//      so the classification is independent of the per-analyzer
+//      acceptance windows that differ across the EventLoop's analyzers).
+//      The efficiency ε(pT) for that index is read from `effHistos[ixID]`
+//      (parallel to tpairs); the particle is dropped with probability
+//      (1 − ε), and survivors are copied to the reconstructed Event with
+//      weight = 1/ε.  Particles matching no track name, or whose
+//      `effHistos[ixID]` is null, survive with ε = 1 and weight = 1.0.
+//
+//   2) Track-merging stage. For every pair of surviving particles within
+//      the configured proximity window (|Δη|, |Δφ|, |ΔpT|), apply the
+//      merge handling: kKeepLeading drops the lower-pT track of each
+//      too-close pair (keeping the higher-pT one unchanged).  Other modes
+//      are stubbed for a future change; only kKeepLeading is wired right
+//      now.  Merging removes both pairs and singles from the reconstructed
+//      set; no correction is applied for it.
+//
+// Per-event RNG: the task owns its own TRandom3 seeded from the constructor
+// argument (the same per-job `seed` used by Pythia), so the new draws are
+// independent across jobs without disturbing gRandom (which the raw pass
+// relies on for the event-plane angle).
+//
+// Templated on r (kRapidity / kPseudorapidity) for symmetry with the
+// analyzers.  The proximity test uses pseudo-rapidity (η) for both builds:
+// the detector geometry is η-based, regardless of which variable the
+// analysis bins in.
+///////////////////////////////////////////////////////////////////////////////
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+class DetectorEffectsTask : public Task
+{
+ public:
+  /// How a too-close pair should be handled.
+  enum MergeHandling {
+    kKeepLeading = 0,    ///< drop the lower-pT track, keep the higher-pT one unchanged (CURRENT BEHAVIOUR)
+    kRemoveBoth = 1,     ///< drop both tracks (stub; not wired to a config switch yet)
+    kCollapseToOne = 2   ///< replace the two by one combined track (stub; not wired)
+  };
+
+  DetectorEffectsTask(const TString& name,
+                      TaskConfiguration* configuration,
+                      Event* srcEvent,
+                      Event* dstRecoEvent,
+                      const std::vector<std::string>& trackNames,
+                      const std::vector<TH1*>& effHistos,
+                      double dEta,
+                      double dPhi,
+                      double dPt,
+                      long rngSeed,
+                      MergeHandling mergeMode = kKeepLeading);
+  virtual ~DetectorEffectsTask();
+
+  virtual void execute();
+  /* createHistograms / saveHistograms remain Task base no-ops (the task is */
+  /* given a TaskConfiguration with every lifecycle flag false).            */
+
+ private:
+  double efficiencyForIxID(int ixID, double pt) const;
+  static double wrapDeltaPhi(double dphi);
+  bool tooClose(double etaA, double phiA, double ptA,
+                double etaB, double phiB, double ptB) const;
+  bool mergeActive() const { return dEta > 0.0 && dPhi > 0.0 && dPt > 0.0; }
+
+  Event* srcEvent;
+  Event* dstEvent;
+  std::vector<std::string> trackNames; ///< the `tpairs` vocabulary, parallel to effHistos
+  std::vector<TH1*> effHistos;         ///< parallel to trackNames; nullptr entries => ε=1
+  double dEta;
+  double dPhi;
+  double dPt;
+  MergeHandling mergeMode;
+  TRandom3* rng; ///< task-owned RNG (does not touch gRandom)
+
+  ClassDef(DetectorEffectsTask, 0)
+};
+
+#endif /* WAC_DetectorEffectsTask */

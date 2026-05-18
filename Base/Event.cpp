@@ -55,7 +55,8 @@ ClassImp(Event)
     fhCL1EtaGapMultiplicity(nullptr),
     fhV0MMultPercentile(nullptr),
     fhCL1MultPercentile(nullptr),
-    fhCL1EtaGapMultPercentile(nullptr)
+    fhCL1EtaGapMultPercentile(nullptr),
+    ownParticleFactory(nullptr)
 {
   fhNPartTot = new TH1F("EventNpart", "Event analyzed particles;number of particles;counts", 1000, -0.5, 1000 - 0.5);
   fhMultiplicity = new TH1F("EventMultiplicity", "Event multiplicity;multiplicity (%);counts", 101, -0.5, 101 - 0.5);
@@ -77,6 +78,8 @@ Event::~Event()
   delete fhV0MMultPercentile;
   delete fhCL1MultPercentile;
   delete fhCL1EtaGapMultPercentile;
+  /* null for the singleton Event::event; non-null only for instances created via createReconstructed() */
+  delete ownParticleFactory;
 }
 
 ////////////////////////////////////////////////////
@@ -101,7 +104,7 @@ void Event::clear()
   CL1M = 0;
   CL1EtaGapM = 0;
   dNchdEta = 0;
-  Particle::getFactory()->reset();
+  particleFactory()->reset();
 }
 
 ////////////////////////////////////////////////////
@@ -126,7 +129,7 @@ void Event::reset()
   CL1M = 0;
   CL1EtaGapM = 0;
   dNchdEta = 0;
-  Particle::getFactory()->reset();
+  particleFactory()->reset();
 }
 
 void Event::setMultiplicityPercentiles(TFile* f)
@@ -223,8 +226,7 @@ void Event::printProperties(ostream& output)
   output << "             dNchdEta : " << dNchdEta << endl;
 
   for (int iParticle = 0; iParticle < nParticles; iParticle++) {
-    // getParticleFactory()->getObjectAt(iParticle)->printProperties(output);
-    Particle::getFactory()->getObjectAt(iParticle)->printProperties(output);
+    particleFactory()->getObjectAt(iParticle)->printProperties(output);
   }
 }
 
@@ -235,4 +237,53 @@ Event* Event::getEvent()
     event = new Event();
   }
   return event;
+}
+
+/// \brief Create a non-singleton Event with its own Factory<Particle>.
+///
+/// Used by DetectorEffectsTask to hold the per-event particle set after
+/// detector effects have been applied, side-by-side with the singleton
+/// Event::getEvent() that holds the raw generated particles.
+Event* Event::createReconstructed()
+{
+  Event* e = new Event(); /* protected ctor is reachable from this static member */
+  e->ownParticleFactory = new Factory<Particle>();
+  e->ownParticleFactory->initialize(Particle::factorySize);
+  return e;
+}
+
+/// \brief Reserve and return the next slot in this Event's particle factory.
+///
+/// Does NOT increment nParticles -- the caller (DetectorEffectsTask) decides
+/// how many slots are actually used and then calls setNParticlesAccepted().
+Particle* Event::appendParticle()
+{
+  return particleFactory()->getNextObject();
+}
+
+/// \brief Copy multiplicity / event-classification info from another Event.
+///
+/// Used by the detector-effects pass so the reconstructed Event reports the
+/// same centrality / multiplicity class as the raw event when read by
+/// EventFilter::accept() and the analyzers' fillEventWiseInfo().  The
+/// per-event histograms (fhNPartTot, fhMultiplicity, ...) are NOT shared --
+/// they stay zero for the reconstructed Event because settleMultiplicity()
+/// is not called on it.
+void Event::copyEventLevelInfoFrom(const Event& src)
+{
+  classestimator = src.classestimator;
+  multiplicityclass = src.multiplicityclass;
+  multiplicity = src.multiplicity;
+  impactParameter = src.impactParameter;
+  other = src.other;
+  inelgth0 = src.inelgth0;
+  V0AM = src.V0AM;
+  V0CM = src.V0CM;
+  CL1M = src.CL1M;
+  CL1EtaGapM = src.CL1EtaGapM;
+  dNchdEta = src.dNchdEta;
+  eventNumber = src.eventNumber;
+  nProjectile = src.nProjectile;
+  nTarget = src.nTarget;
+  nParticleTotal = src.nParticleTotal;
 }

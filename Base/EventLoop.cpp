@@ -18,7 +18,10 @@
 ClassImp(EventLoop)
 
   EventLoop::EventLoop()
-  : TaskCollection("EventLoop", nullptr, 200)
+  /* bumped from 200 to 600 to accommodate the second analyzer set added when */
+  /* detector effects are enabled (raw + reco), plus the generator and the    */
+  /* DetectorEffectsTask itself                                               */
+  : TaskCollection("EventLoop", nullptr, 600)
 {
   if (reportDebug())
     cout << "EventLoop::CTOR Started" << endl;

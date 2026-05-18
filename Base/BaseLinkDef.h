@@ -44,6 +44,8 @@
 #pragma link C++ class ParticleHistos + ;
 #pragma link C++ class ParticleAnalyzer < AnalysisConfiguration::kRapidity> + ;
 #pragma link C++ class ParticleAnalyzer < AnalysisConfiguration::kPseudorapidity> + ;
+#pragma link C++ class DetectorEffectsTask < AnalysisConfiguration::kRapidity> + ;
+#pragma link C++ class DetectorEffectsTask < AnalysisConfiguration::kPseudorapidity> + ;
 #pragma link C++ class ParticlePairCombinedHistos + ;
 #pragma link C++ class ParticlePairBalanceFunctionDiffHistos + ;
 #pragma link C++ class ParticlePairCombinedDiffHistos + ;

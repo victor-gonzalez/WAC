@@ -28,7 +28,8 @@ class MiniParticle
       y(0),
       eta(0),
       phi(0),
-      ixID(0)
+      ixID(0),
+      weight(1.0)
   {
   }
 
@@ -41,7 +42,8 @@ class MiniParticle
       y(other.y),
       eta(other.eta),
       phi(other.phi),
-      ixID(other.ixID)
+      ixID(other.ixID),
+      weight(other.weight)
   {
   }
 
@@ -53,6 +55,7 @@ class MiniParticle
       eta = other.eta;
       phi = other.phi;
       ixID = other.ixID;
+      weight = other.weight;
     }
     return *this;
   }
@@ -64,6 +67,7 @@ class MiniParticle
     eta = part.eta;
     phi = part.phi;
     ixID = part.ixID;
+    weight = part.weight;
 
     return *this;
   }
@@ -75,6 +79,7 @@ class MiniParticle
     output << "     eta: " << eta << endl;
     output << "     phi: " << phi << endl;
     output << "    ixID: " << ixID << endl;
+    output << "  weight: " << weight << endl;
   }
 
   double getPx() { return pt * cos(phi); }
@@ -94,7 +99,8 @@ class MiniParticle
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
   double pt, y, eta;
   float phi;
-  int ixID; ///< the index of the filter which accepted the MiniParticle (kind of PID index)
+  int ixID;      ///< the index of the filter which accepted the MiniParticle (kind of PID index)
+  double weight; ///< per-particle correction weight (1.0 = no correction); inherited from Particle
 };
 
 /* Stores a pool of events in the shape of their particles       */

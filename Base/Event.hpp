@@ -44,6 +44,16 @@ class Event
   bool addParticleToMultiplicity(Particle& particle);
   void settleMultiplicity(int npart);
 
+  ///////////////////////////////////////////////////////////////////////////
+  // Reconstructed-event support: a non-singleton Event that owns its own
+  // Factory<Particle>, used by DetectorEffectsTask to hold the per-event
+  // particle set after detector effects have been applied.
+  ///////////////////////////////////////////////////////////////////////////
+  static Event* createReconstructed();             ///< new Event with its own particle factory
+  Particle* appendParticle();                      ///< get next factory slot (does NOT bump nParticles)
+  void setNParticlesAccepted(int n) { nParticles = n; }
+  void copyEventLevelInfoFrom(const Event& src);   ///< copy multiplicity-related fields from src
+
   //////////////////////////////////////////////////////////////////////////////
   // Data Members
   //////////////////////////////////////////////////////////////////////////////
@@ -75,10 +85,22 @@ class Event
   const TH1* fhCL1MultPercentile;       ///< the CL1 Centrality / Multiplicity percentile estimation histogram
   const TH1* fhCL1EtaGapMultPercentile; ///< the CL1 with an eta gap Centrality / Multiplicity percentile estimation histogram
 
+  /// If non-null, this Event owns its own particle factory (used by the
+  /// reconstructed Event created via createReconstructed()).  When null,
+  /// the global Particle::getFactory() singleton is used (default behaviour
+  /// for Event::getEvent()).
+  Factory<Particle>* ownParticleFactory;
+
+  /// Inline accessor returning the right factory for this Event instance.
+  Factory<Particle>* particleFactory()
+  {
+    return ownParticleFactory ? ownParticleFactory : Particle::getFactory();
+  }
+
  public:
   static Event* getEvent();
 
-  ClassDef(Event, 0)
+  ClassDef(Event, 1)
 };
 
 //
@@ -87,8 +109,7 @@ class Event
 inline Particle* Event::getParticleAt(int index)
 {
   if (index >= 0 && index < nParticles) {
-    // return getParticleFactory()->getObjectAt(index);
-    return Particle::getFactory()->getObjectAt(index);
+    return particleFactory()->getObjectAt(index);
   } else
     return 0;
 }

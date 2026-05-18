@@ -58,6 +58,7 @@ class Particle
   int ixID; ///< the index of the filter which accepted the particle (kind of PID index)
   int feedDownCode; ///< the resonance mother id as being part of the feed down
   int originalix;   ///< the original index in the particle tree for debugging purposes
+  double weight;    ///< per-particle correction weight (1.0 = no correction); set by detector-effects task
 
   static int factorySize;
   static Factory<Particle>* factory;

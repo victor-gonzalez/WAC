@@ -182,7 +182,8 @@ void ParticleAnalyzer<r>::execute()
       accept = particleFilters[iFilter]->accept(particle);
       if (accept) {
         nAccepted[iFilter]++;
-        particleHistos[iFilter]->fill<r>(particle, 1.0);
+        /* per-particle weight is 1.0 for the raw pass; 1/eff for the detector-effects pass */
+        particleHistos[iFilter]->fill<r>(particle, particle.weight);
       }
     }
   }

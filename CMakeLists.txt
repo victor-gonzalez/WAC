@@ -28,7 +28,7 @@ find_package(ROOT CONFIG REQUIRED)
 find_library(EG EG)
 find_library(PYTHIA8LIB pythia8 PATHS $ENV{PYTHIA8}/lib)
 
-add_compile_options(-pthread -std=c++17 -m64)
+add_compile_options(-pthread -std=c++20 -m64)
 
 #---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
 include_directories(${CMAKE_SOURCE_DIR} ${ROOT_INCLUDE_DIRS} $ENV{MYHOME} $ENV{ATGSI} "Base" "Best" "Pythia" "Urqmd" $ENV{PYTHIA8}/include)

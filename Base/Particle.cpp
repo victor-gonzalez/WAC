@@ -31,7 +31,8 @@ Particle::Particle()
     ixYEtaPhi(-1),
     ixID(-1),
     feedDownCode(-1),
-    originalix(-1)
+    originalix(-1),
+    weight(1.0)
 {
   // no op
 }
@@ -62,6 +63,7 @@ Particle::Particle(const Particle& other)
     ixID = other.ixID;
     feedDownCode = other.feedDownCode;
     originalix = other.originalix;
+    weight = other.weight;
   }
 }
 
@@ -82,6 +84,7 @@ Particle& Particle::operator=(const Particle& other)
     ixID = other.ixID;
     feedDownCode = other.feedDownCode;
     originalix = other.originalix;
+    weight = other.weight;
   }
   return *this;
 }
@@ -111,6 +114,7 @@ void Particle::printProperties(ostream& output)
   output << "            phi: " << phi << endl;
   output << " feed down code: " << feedDownCode << endl;
   output << "    original ix: " << originalix << endl;
+  output << "         weight: " << weight << endl;
 }
 
 void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
@@ -137,6 +141,7 @@ void Particle::setPxPyPzE(double p_x, double p_y, double p_z, double p_e)
   ixID = -1;
   feedDownCode = -1;
   originalix = -1;
+  weight = 1.0;
 }
 
 void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y, double p_z, double p_e)
@@ -165,6 +170,7 @@ void Particle::setPidPxPyPzE(long thePid, long theCharge, double p_x, double p_y
   ixID = -1;
   feedDownCode = -1;
   originalix = -1;
+  weight = 1.0;
 }
 
 void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, double _y, double _eta)
@@ -183,6 +189,7 @@ void Particle::setPidPtPhiYEta(long _id, long _ch, double _pT, double _phi, doub
   ixID = -1;
   feedDownCode = -1;
   originalix = -1;
+  weight = 1.0;
 }
 
 void Particle::boost(double ax, double ay, double az)

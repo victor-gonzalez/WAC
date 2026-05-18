@@ -1,12 +1,12 @@
 #!/bin/bash
 
-if [ $# -gt 5 ]; then
-  echo "usage: runStatsUncertain pythia/best productiontag ixrap ixptrange ixevtflt"
+if [ $# -gt 6 ]; then
+  echo "usage: runStatsUncertain pythia/best productiontag ixrap ixptrange ixevtflt [opt]"
   exit 1
 fi
 
 if [ $# -lt 5 ]; then
-  echo "usage: runStatsUncertain pythia/best productiontag ixrap ixptrange ixevtflt"
+  echo "usage: runStatsUncertain pythia/best productiontag ixrap ixptrange ixevtflt [opt]"
   exit 1
 fi
 
@@ -15,6 +15,9 @@ PRODUCTIONTAG=$2
 IXRAP=$3
 IXPTRANGE=$4
 IXEVTFLT=$5
+# optional statUncertain option token; "det" selects the detector-effects
+# (reconstructed) pass, empty selects the raw pass (unchanged behaviour)
+OPT=${6:-}
 
 # no more core files
 ulimit -c 0
@@ -44,14 +47,14 @@ then
   export DYLD_LIBRARY_PATH="$WAC_LIB:$PYTHIA8/lib:$DYLD_LIBRARY_PATH"
   export LD_LIBRARY_PATH="$WAC_LIB:$PYTHIA8/lib:$LD_LIBRARY_PATH"
 
-  statUncertainPythia $PRODUCTIONTAG "" $IXRAP $IXPTRANGE $IXEVTFLT
+  statUncertainPythia $PRODUCTIONTAG "$OPT" $IXRAP $IXPTRANGE $IXEVTFLT
 else 
   if [[ ${WHICHGEN} == "best" ]]
   then
     export DYLD_LIBRARY_PATH="$WAC_LIB:$DYLD_LIBRARY_PATH"
     export LD_LIBRARY_PATH="$WAC_LIB:$LD_LIBRARY_PATH"
 
-    statUncertainBest $PRODUCTIONTAG "" $IXRAP $IXPTRANGE $IXEVTFLT
+    statUncertainBest $PRODUCTIONTAG "$OPT" $IXRAP $IXPTRANGE $IXEVTFLT
   else
     echo "ERROR: UNKNOWN GENERATOR ${WHICHGEN}"
     exit 1

@@ -54,59 +54,49 @@ class PythiaAnalysisConfiguration : public TObject
   std::vector<std::string> tsingles = {"AllA"};
   std::vector<std::string> tfeeddownrej = {"none", "all"};
 
+  /* ============================================================== */
+  /* Detector effects (second analysis pass).                       */
+  /* `detectoreffects` is the master enable: when true, the         */
+  /* launcher inserts a DetectorEffectsTask after the generator and */
+  /* duplicates each analyzer onto a parallel reconstructed Event.  */
+  /* Within the reco pass each effect is independently switchable:  */
+  /*                                                                */
+  /*  - Efficiency drop: keyed by the index of the particle in the  */
+  /*    `tpairs` vector (the same ixID the analyzers assign).  For  */
+  /*    each entry `pname` in `tpairs` the input ROOT file is       */
+  /*    expected to contain a TH1 named `<pname>Efficiency` whose   */
+  /*    x-axis is pT [GeV/c] and whose bin contents are eff in      */
+  /*    [0,1].  Missing histograms => eff=1 for that index (no      */
+  /*    drop), with a warning printed at startup.  Particles that   */
+  /*    are not accepted by any `tpairs` filter also survive with   */
+  /*    eff=1, weight 1.0.                                          */
+  /*                                                                */
+  /*  - Track merging: active iff all three thresholds are >0.      */
+  /*    Two tracks within (|Deta|, |Dphi|, |DpT|) are merged by     */
+  /*    dropping the lower-pT one (keep-leading).  No correction    */
+  /*    is applied for this effect for now.                         */
+  /*                                                                */
+  /* `detectoreffects:true` with no efficiency histograms in the    */
+  /* input file and all thresholds <=0 => reco pass = exact copy of */
+  /* raw (regression check).                                        */
+  /* ============================================================== */
+  bool detectoreffects = false;
+  float mergedeta = -1.0;
+  float mergedphi = -1.0;
+  float mergedpt = -1.0;
+
   template <AnalysisConfiguration::RapidityPseudoRapidity r>
   static ParticleFilter<r>* particleFilter(std::string str, std::string fdstr, AnalysisConfiguration* ac)
   {
-    auto getparticle = [](auto str) {
-      if (str == "PiP" || str == "PiM" || str == "PiC" || str == "Pi0" || str == "PiA") {
-        return ParticleFilter<r>::Pion;
-      } else if (str == "KaP" || str == "KaM" || str == "KaC" || str == "Ka0" || str == "KaA") {
-        return ParticleFilter<r>::Kaon;
-      } else if (str == "PrP" || str == "PrM" || str == "PrC" || str == "PrA") {
-        return ParticleFilter<r>::Proton;
-      } else if (str == "La") {
-        return ParticleFilter<r>::Lambda;
-      } else if (str == "ALa") {
-        return ParticleFilter<r>::ALambda;
-      } else if (str == "Gam") {
-        return ParticleFilter<r>::Photon;
-      } else if (str == "AllP" || str == "AllM" || str == "AllC" || str == "All0" || str == "AllA") {
-        return ParticleFilter<r>::AllSpecies;
-      } else {
-        ::Fatal("PythiaAnalysisConfiguration::particleFilter()", "Paricle species %s still not supported for analysis. Please fix it!!", str.c_str());
-        return ParticleFilter<r>::AllSpecies;
-      }
-    };
-    auto getcharge = [](auto str) {
-      if (str == "PiP" || str == "KaP" || str == "PrP" || str == "AllP") {
-        return ParticleFilter<r>::Positive;
-      } else if (str == "PiM" || str == "KaM" || str == "PrM" || str == "AllM") {
-        return ParticleFilter<r>::Negative;
-      } else if (str == "PiC" || str == "KaC" || str == "PrC" || str == "AllC") {
-        return ParticleFilter<r>::Charged;
-      } else if (str == "Pi0" || str == "Ka0" || str == "All0" || str == "La" || str == "ALa" || str == "Gam") {
-        return ParticleFilter<r>::Neutral;
-      } else if (str == "PiA" || str == "KaA" || str == "PrA" || str == "AllA") {
-        return ParticleFilter<r>::AllCharges;
-      } else {
-        ::Fatal("PythiaAnalysisConfiguration::particleFilter()", "Paricle species %s still not supported for analysis. Please fix it!!", str.c_str());
-        return ParticleFilter<r>::AllCharges;
-      }
-    };
-    auto getfeeddown = [](auto str) {
-      if (str == "none") {
-        return ParticleFilter<r>::None;
-      } else if (str == "all") {
-        return ParticleFilter<r>::AllResonances;
-      } else {
-        ::Fatal("PythiaAnalysisConfiguration::particleFilter()", "Resonances suppression %s still not supported for analysis. Please fix it!!", str.c_str());
-        return ParticleFilter<r>::None;
-      }
-    };
-    return new ParticleFilter<r>(getparticle(str), getcharge(str), getfeeddown(fdstr), ac->min_pt, ac->max_pt, ac->min_y, ac->max_y);
+    /* (species, charge, feeddown) lookup tables now live on ParticleFilter; this   */
+    /* method only adds the per-(y,pT) kinematic window from the supplied `ac`.     */
+    return new ParticleFilter<r>(ParticleFilter<r>::speciesFor(str),
+                                 ParticleFilter<r>::chargeFor(str),
+                                 ParticleFilter<r>::feedDownFor(fdstr),
+                                 ac->min_pt, ac->max_pt, ac->min_y, ac->max_y);
   }
 
-  ClassDef(PythiaAnalysisConfiguration, 3)
+  ClassDef(PythiaAnalysisConfiguration, 4)
 };
 
 #endif // PYTHIAANALYSISCONFIGURATION_H

@@ -401,7 +401,9 @@ void TwoPartDiffCorrelationAnalyzer<r, options>::execute()
       }
       continue;
     }
-    particle_Histos[ixID]->fill<r>(*particle, 1.0);
+    /* the per-particle weight defaults to 1.0 for the raw (generated) pass; the */
+    /* detector-effects pass populates it with 1/eff(pT) on a parallel Event     */
+    particle_Histos[ixID]->fill<r>(*particle, particle->weight);
     nAccepted[ixID] += 1;
     if (reportDebug()) {
       cout << "  accepted as: " << particleFilters[particle->ixID]->getName() << endl;
@@ -423,7 +425,7 @@ void TwoPartDiffCorrelationAnalyzer<r, options>::execute()
         if (ixID2 < 0)
           continue;
 
-        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, 1.0, 1.0);
+        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight);
         nAcceptedPairs[ixID1][ixID2] += 1;
       }
     }

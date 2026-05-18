@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <TStyle.h>
 #include <TROOT.h>
 #include <TMath.h>
@@ -20,8 +21,12 @@
 #include "PythiaConfiguration.hpp"
 #include "PythiaEventGenerator.hpp"
 #include "PythiaAnalysisConfiguration.hpp"
+#include "DetectorEffectsTask.hpp"
 
-int nAnalysisTasks = 200;
+/* generous cap: with detector effects on, each configureTasks() call appends */
+/* up to 4 analyzer tasks (2 raw + 2 reco) instead of 2; the EventLoop's     */
+/* TaskCollection capacity is bumped accordingly in Base/EventLoop.cpp.       */
+int nAnalysisTasks = 600;
 Task** analysisTasks;
 int iTask = 0;
 
@@ -30,7 +35,8 @@ bool configureTasks(std::string efd,
                     const PythiaAnalysisConfiguration* conf,
                     AnalysisConfiguration* ac,
                     EventFilter* eventFilter,
-                    Event* event)
+                    Event* event,
+                    Event* recoEvent)
 {
   /* for having the balance function correctly extracted the particle filters have to follow certain order */
   /* - charged particle should come always first                                                           */
@@ -49,10 +55,10 @@ bool configureTasks(std::string efd,
   /* the pairs taskname */
   TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsFDRej%s", efd.c_str()).Data());
 
-  /* the two-particle analyzer */
+  /* the two-particle mixed-event analyzer (raw pass) */
   analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(taskName, ac, event, eventFilter, particleFilters);
 
-  /* single particle analysis filters and task if any */
+  /* single particle analysis filters and task if any (raw pass) */
   if (conf->tsingles.size() > 0) {
     int nParticleFilters = 0;
     TString singlesTtaskName = TString::Format(conf->taskname.c_str(), TString::Format("SinglesFDRej%s", efd.c_str()).Data());
@@ -66,6 +72,39 @@ bool configureTasks(std::string efd,
       }
     }
     analysisTasks[iTask++] = new ParticleAnalyzer<r>(singlesTtaskName, ac, event, eventFilter, nParticleFilters, singleParticleFilters);
+  }
+
+  /* detector-effects (reconstructed) pass: same analyzers, fresh filter set,    */
+  /* reading from the parallel recoEvent populated by DetectorEffectsTask.       */
+  /* Task names contain "Det" so Task::saveHistograms makes distinct TDirectorys */
+  /* in the same output .root file, side-by-side with the raw directories.       */
+  if (conf->detectoreffects && recoEvent != nullptr) {
+    std::vector<ParticleFilter<r>*> recoParticleFilters;
+    for (auto& part : conf->tpairs) {
+      auto filter = PythiaAnalysisConfiguration::particleFilter<r>(part, efd, ac);
+      if (filter != nullptr) {
+        recoParticleFilters.push_back(filter);
+      } else {
+        return false;
+      }
+    }
+    TString recoTaskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsDetFDRej%s", efd.c_str()).Data());
+    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(recoTaskName, ac, recoEvent, eventFilter, recoParticleFilters);
+
+    if (conf->tsingles.size() > 0) {
+      int nRecoParticleFilters = 0;
+      TString recoSinglesTaskName = TString::Format(conf->taskname.c_str(), TString::Format("SinglesDetFDRej%s", efd.c_str()).Data());
+      ParticleFilter<r>** recoSingleParticleFilters = new ParticleFilter<r>*[50];
+      for (auto& part : conf->tsingles) {
+        auto filter = PythiaAnalysisConfiguration::particleFilter<r>(part, efd, ac);
+        if (filter != nullptr) {
+          recoSingleParticleFilters[nRecoParticleFilters++] = filter;
+        } else {
+          return false;
+        }
+      }
+      analysisTasks[iTask++] = new ParticleAnalyzer<r>(recoSinglesTaskName, ac, recoEvent, eventFilter, nRecoParticleFilters, recoSingleParticleFilters);
+    }
   }
   return true;
 }
@@ -131,12 +170,32 @@ int main(int argc, char* argv[])
   // Event Section
   // ==========================
   Event* event = Event::getEvent();
+  Event* recoEvent = nullptr;
+  /* effHistos is parallel to conf->tpairs: effHistos[i] is the efficiency TH1 */
+  /* for particles tagged with ixID == i (i.e. accepted by tpairFilters[i]).   */
+  /* Missing entries (nullptr) => eff=1 for that index (silent fallback).      */
+  std::vector<TH1*> effHistos;
   if (!conf->inputfile.empty()) {
     TFile* f = new TFile(conf->inputfile.c_str());
     if (f != nullptr && f->IsOpen()) {
       bool status = TH1::AddDirectoryStatus();
       TH1::AddDirectory(false);
       event->setMultiplicityPercentiles(f);
+      /* load `<tpairs[i]>Efficiency` for each tpairs entry; missing -> nullptr */
+      if (conf->detectoreffects) {
+        effHistos.assign(conf->tpairs.size(), nullptr);
+        for (size_t i = 0; i < conf->tpairs.size(); ++i) {
+          std::string hname = conf->tpairs[i] + "Efficiency";
+          TObject* o = f->Get(hname.c_str());
+          if (o == nullptr) {
+            Warning("RunPythiaSimulationTwoParticlesDiffME",
+                    "efficiency histogram '%s' not found in %s -- eff=1 for tpairs[%zu]=%s",
+                    hname.c_str(), conf->inputfile.c_str(), i, conf->tpairs[i].c_str());
+            continue;
+          }
+          effHistos[i] = (TH1*)o->Clone(); /* detached: survives f->Close() */
+        }
+      }
       f->Close();
       delete f;
       TH1::AddDirectory(status);
@@ -147,6 +206,14 @@ int main(int argc, char* argv[])
       }
       return 0;
     }
+  }
+  /* create the parallel reconstructed Event used by the detector-effects pass */
+  if (conf->detectoreffects) {
+    if (effHistos.empty()) {
+      /* no input file or no histos loaded; keep effHistos sized to tpairs (all nullptr) */
+      effHistos.assign(conf->tpairs.size(), nullptr);
+    }
+    recoEvent = Event::createReconstructed();
   }
 
   // ==========================
@@ -180,6 +247,22 @@ int main(int argc, char* argv[])
   EventFilter* eventFilterGen = new EventFilter(eventSelectionGen, 0.0, 0.0);
 
   Task* generator;
+  Task* detTask = nullptr;
+  /* throwaway minimal configuration for the DetectorEffectsTask: all lifecycle flags */
+  /* are false so Task::initialize / reset / finalize do nothing (the task produces   */
+  /* no output of its own; the reconstructed Event is consumed by parallel analyzers).*/
+  AnalysisConfiguration* detTaskCfg = nullptr;
+  if (conf->detectoreffects) {
+    detTaskCfg = new AnalysisConfiguration("DETEFF", "DETEFF", "1.0");
+    detTaskCfg->loadHistograms = false;
+    detTaskCfg->createHistograms = false;
+    detTaskCfg->scaleHistograms = false;
+    detTaskCfg->calculateDerivedHistograms = false;
+    detTaskCfg->saveHistograms = false;
+    detTaskCfg->resetHistograms = false;
+    detTaskCfg->clearHistograms = false;
+    detTaskCfg->forceHistogramsRewrite = false;
+  }
   /* particle selection at the generator level */
   if (conf->gparticlefilter == "All" && conf->gchargefilter == "All") {
     if (conf->inrapidity) {
@@ -189,6 +272,11 @@ int main(int argc, char* argv[])
                                                                                                                                  genMinPt, genMaxPt,
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
+      if (conf->detectoreffects) {
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent,
+                                                                            conf->tpairs, effHistos,
+                                                                            conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      }
     } else {
       ParticleFilter<AnalysisConfiguration::kPseudorapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kPseudorapidity>(ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllSpecies,
                                                                                                                                              ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllCharges,
@@ -196,6 +284,11 @@ int main(int argc, char* argv[])
                                                                                                                                              genMinPt, genMaxPt,
                                                                                                                                              -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kPseudorapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
+      if (conf->detectoreffects) {
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent,
+                                                                                  conf->tpairs, effHistos,
+                                                                                  conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      }
     }
   } else {
     Error("main", "Launcher still not prepared for configuring different particles generation. Please, fix it!!");
@@ -279,21 +372,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event)) {
+                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent)) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event)) {
+              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent)) {
                 return 0;
               }
             }
@@ -301,21 +394,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event)) {
+                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent)) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event)) {
+              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent)) {
                 return 0;
               }
             }
@@ -334,6 +427,12 @@ int main(int argc, char* argv[])
   EventLoop* eventLoop = new EventLoop();
   generator->reportLevel = repLevel;
   eventLoop->addTask((Task*)generator);
+  /* the DetectorEffectsTask (if any) MUST run after the generator and before the */
+  /* reconstructed analyzers; it builds the parallel recoEvent each event.        */
+  if (detTask != nullptr) {
+    detTask->reportLevel = repLevel;
+    eventLoop->addTask(detTask);
+  }
   for (int iAnalysisTask = 0; iAnalysisTask < nAnalysisTasks; iAnalysisTask++) {
     analysisTasks[iAnalysisTask]->reportLevel = repLevel;
     eventLoop->addTask(analysisTasks[iAnalysisTask]);
