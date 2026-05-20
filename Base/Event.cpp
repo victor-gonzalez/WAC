@@ -58,11 +58,14 @@ ClassImp(Event)
     fhCL1EtaGapMultPercentile(nullptr),
     ownParticleFactory(nullptr)
 {
+  bool status = TH1::AddDirectoryStatus();
+  TH1::AddDirectory(false);
   fhNPartTot = new TH1F("EventNpart", "Event analyzed particles;number of particles;counts", 1000, -0.5, 1000 - 0.5);
   fhMultiplicity = new TH1F("EventMultiplicity", "Event multiplicity;multiplicity (%);counts", 101, -0.5, 101 - 0.5);
   fhV0Multiplicity = new TH2F("V0Multiplicity", "V0M;V0M;d#it{N}/d#eta;counts", 300, -9.5, 300 - 9.5, 250, -9.5, 250 - 9.5);
   fhCL1Multiplicity = new TH2F("CL1Multiplicity", "CL1M;CL1M;d#it{N}/d#eta;counts", 300, -9.5, 300 - 9.5, 250, -9.5, 250 - 9.5);
   fhCL1EtaGapMultiplicity = new TH2F("CL1EtaGapMultiplicity", "CL1M (excl |#eta|<0.8);CL1M;d#it{N}/d#eta;counts", 300, -9.5, 300 - 9.5, 250, -9.5, 250 - 9.5);
+  TH1::AddDirectory(status);
 }
 
 //////////////////////////
