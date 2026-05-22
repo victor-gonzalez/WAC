@@ -24,8 +24,8 @@
 #include "DetectorEffectsTask.hpp"
 
 /* generous cap: with detector effects on, each configureTasks() call appends */
-/* up to 4 analyzer tasks (2 raw + 2 reco) instead of 2; the EventLoop's     */
-/* TaskCollection capacity is bumped accordingly in Base/EventLoop.cpp.       */
+/* up to 6 analyzer tasks (2 raw + 2 corrected + 2 uncorrected) instead of 2; */
+/* the EventLoop's TaskCollection capacity is bumped to match in EventLoop.cpp.*/
 int nAnalysisTasks = 600;
 Task** analysisTasks;
 int iTask = 0;
@@ -36,7 +36,8 @@ bool configureTasks(std::string efd,
                     AnalysisConfiguration* ac,
                     EventFilter* eventFilter,
                     Event* event,
-                    Event* recoEvent)
+                    Event* recoEvent,
+                    Event* uncorrEvent)
 {
   /* for having the balance function correctly extracted the particle filters have to follow certain order */
   /* - charged particle should come always first                                                           */
@@ -74,36 +75,46 @@ bool configureTasks(std::string efd,
     analysisTasks[iTask++] = new ParticleAnalyzer<r>(singlesTtaskName, ac, event, eventFilter, nParticleFilters, singleParticleFilters);
   }
 
-  /* detector-effects (reconstructed) pass: same analyzers, fresh filter set,    */
-  /* reading from the parallel recoEvent populated by DetectorEffectsTask.       */
-  /* Task names contain "Det" so Task::saveHistograms makes distinct TDirectorys */
-  /* in the same output .root file, side-by-side with the raw directories.       */
-  if (conf->detectoreffects && recoEvent != nullptr) {
-    std::vector<ParticleFilter<r>*> recoParticleFilters;
+  /* detector-effects passes: the corrected ("DetCorr", weights 1/ε, reading     */
+  /* recoEvent) and the uncorrected ("Det", weights 1.0, reading uncorrEvent)    */
+  /* analyzers. Both reuse the raw analyzer classes with their own fresh filter  */
+  /* objects; the "DetCorr"/"Det" infix in the task name makes                   */
+  /* Task::saveHistograms put each pass in its own TDirectory in the shared      */
+  /* output .root file, side-by-side with the raw directories.                   */
+  auto addDetectorPass = [&](const char* infix, Event* passEvent) -> bool {
+    std::vector<ParticleFilter<r>*> passFilters;
     for (auto& part : conf->tpairs) {
       auto filter = PythiaAnalysisConfiguration::particleFilter<r>(part, efd, ac);
-      if (filter != nullptr) {
-        recoParticleFilters.push_back(filter);
-      } else {
+      if (filter == nullptr) {
         return false;
       }
+      passFilters.push_back(filter);
     }
-    TString recoTaskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsDetFDRej%s", efd.c_str()).Data());
-    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(recoTaskName, ac, recoEvent, eventFilter, recoParticleFilters);
+    TString passTaskName = TString::Format(conf->taskname.c_str(), TString::Format("Pairs%sFDRej%s", infix, efd.c_str()).Data());
+    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(passTaskName, ac, passEvent, eventFilter, passFilters);
 
     if (conf->tsingles.size() > 0) {
-      int nRecoParticleFilters = 0;
-      TString recoSinglesTaskName = TString::Format(conf->taskname.c_str(), TString::Format("SinglesDetFDRej%s", efd.c_str()).Data());
-      ParticleFilter<r>** recoSingleParticleFilters = new ParticleFilter<r>*[50];
+      int nPassSingleFilters = 0;
+      TString passSinglesTaskName = TString::Format(conf->taskname.c_str(), TString::Format("Singles%sFDRej%s", infix, efd.c_str()).Data());
+      ParticleFilter<r>** passSingleFilters = new ParticleFilter<r>*[50];
       for (auto& part : conf->tsingles) {
         auto filter = PythiaAnalysisConfiguration::particleFilter<r>(part, efd, ac);
-        if (filter != nullptr) {
-          recoSingleParticleFilters[nRecoParticleFilters++] = filter;
-        } else {
+        if (filter == nullptr) {
           return false;
         }
+        passSingleFilters[nPassSingleFilters++] = filter;
       }
-      analysisTasks[iTask++] = new ParticleAnalyzer<r>(recoSinglesTaskName, ac, recoEvent, eventFilter, nRecoParticleFilters, recoSingleParticleFilters);
+      analysisTasks[iTask++] = new ParticleAnalyzer<r>(passSinglesTaskName, ac, passEvent, eventFilter, nPassSingleFilters, passSingleFilters);
+    }
+    return true;
+  };
+
+  if (conf->detectoreffects && recoEvent != nullptr && uncorrEvent != nullptr) {
+    if (!addDetectorPass("DetCorr", recoEvent)) {
+      return false;
+    }
+    if (!addDetectorPass("Det", uncorrEvent)) {
+      return false;
     }
   }
   return true;
@@ -170,7 +181,11 @@ int main(int argc, char* argv[])
   // Event Section
   // ==========================
   Event* event = Event::getEvent();
+  /* parallel events for the detector-effects passes: recoEvent holds the        */
+  /* corrected ("DetCorr") particle set (weights 1/ε), uncorrEvent holds the     */
+  /* same set uncorrected ("Det", weights 1.0). Both created iff detectoreffects.*/
   Event* recoEvent = nullptr;
+  Event* uncorrEvent = nullptr;
   /* effHistos is parallel to conf->tpairs: effHistos[i] is the efficiency TH1 */
   /* for particles tagged with ixID == i (i.e. accepted by tpairFilters[i]).   */
   /* Missing entries (nullptr) => eff=1 for that index (silent fallback).      */
@@ -207,13 +222,14 @@ int main(int argc, char* argv[])
       return 0;
     }
   }
-  /* create the parallel reconstructed Event used by the detector-effects pass */
+  /* create the parallel reconstructed Events used by the detector-effects passes */
   if (conf->detectoreffects) {
     if (effHistos.empty()) {
       /* no input file or no histos loaded; keep effHistos sized to tpairs (all nullptr) */
       effHistos.assign(conf->tpairs.size(), nullptr);
     }
     recoEvent = Event::createReconstructed();
+    uncorrEvent = Event::createReconstructed();
   }
 
   // ==========================
@@ -273,7 +289,7 @@ int main(int argc, char* argv[])
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
       if (conf->detectoreffects) {
-        detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent,
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
                                                                             conf->tpairs, effHistos,
                                                                             conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
       }
@@ -285,7 +301,7 @@ int main(int argc, char* argv[])
                                                                                                                                              -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kPseudorapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
       if (conf->detectoreffects) {
-        detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent,
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
                                                                                   conf->tpairs, effHistos,
                                                                                   conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
       }
@@ -372,21 +388,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent)) {
+              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                 return 0;
               }
             }
@@ -394,21 +410,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent)) {
+                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent)) {
+              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
                 return 0;
               }
             }

@@ -24,10 +24,16 @@
 // DetectorEffectsTask<r>
 //
 // Task inserted in the EventLoop between the event generator and the analysis
-// tasks of the "reconstructed" pass.  Reads the singleton (raw) Event filled
-// by the generator and produces a parallel "reconstructed" Event (an Event
-// instance carrying its own Factory<Particle>, created via
-// Event::createReconstructed()) by:
+// tasks of the detector-effects passes.  Reads the singleton (raw) Event
+// filled by the generator and produces TWO parallel Event instances, each
+// carrying its own Factory<Particle> (created via Event::createReconstructed()):
+//
+//   * the CORRECTED ("DetCorr") event -- detector effects applied, every
+//     surviving particle carrying the efficiency-correction weight 1/ε;
+//   * the UNCORRECTED ("Det") event -- the very same reconstructed particle
+//     set, but with every weight reset to 1.0 (raw detector response).
+//
+// The corrected event is built first by:
 //
 //   1) Efficiency stage. Each raw particle is classified by running it
 //      through ParticleFilter<r>::getIndex(trackNames, p), which iterates
@@ -49,6 +55,11 @@
 //      are stubbed for a future change; only kKeepLeading is wired right
 //      now.  Merging removes both pairs and singles from the reconstructed
 //      set; no correction is applied for it.
+//
+//   3) Uncorrected replication.  Once the corrected event is complete it is
+//      copied particle-by-particle into the uncorrected event with every
+//      weight reset to 1.0, so the parallel "Det" analyzers see the detector
+//      response without the efficiency correction.
 //
 // Per-event RNG: the task owns its own TRandom3 seeded from the constructor
 // argument (the same per-job `seed` used by Pythia), so the new draws are
@@ -76,6 +87,7 @@ class DetectorEffectsTask : public Task
                       TaskConfiguration* configuration,
                       Event* srcEvent,
                       Event* dstRecoEvent,
+                      Event* dstUncorrEvent,
                       const std::vector<std::string>& trackNames,
                       const std::vector<TH1*>& effHistos,
                       double dEta,
@@ -97,7 +109,8 @@ class DetectorEffectsTask : public Task
   bool mergeActive() const { return dEta > 0.0 && dPhi > 0.0 && dPt > 0.0; }
 
   Event* srcEvent;
-  Event* dstEvent;
+  Event* dstEvent;        ///< corrected ("DetCorr") event; surviving particles carry weight 1/ε
+  Event* dstUncorrEvent;  ///< uncorrected ("Det") event; same particle set with weight 1.0
   std::vector<std::string> trackNames; ///< the `tpairs` vocabulary, parallel to effHistos
   std::vector<TH1*> effHistos;         ///< parallel to trackNames; nullptr entries => ε=1
   double dEta;

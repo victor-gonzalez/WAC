@@ -160,7 +160,7 @@ TList* extractMeanAndStDevFromSubSets(const TObjArray& listsarray, const TString
 }
 
 template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
-TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, int iptrange, std::string evfltr, int isample, bool det)
+TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TFile* samplefile, AnalysisConfiguration* ac, int irap, int iptrange, std::string evfltr, int isample, const char* passInfix)
 {
   std::string feeddownrej = "none";
   char* cname = new char[64];
@@ -197,14 +197,13 @@ TList* extractSampleResults(Option_t* opt, PythiaAnalysisConfiguration* conf, TF
   EventFilter* eventFilter = getEvenFilter(evfltr);
   Event* event = Event::getEvent();
 
-  /* the pairs taskname; the detector-effects (reconstructed) pass lives in a   */
-  /* parallel directory whose task name carries the "Det" infix (the launcher   */
-  /* names that analyzer Format(conf->taskname, "PairsDetFDRej<fd>") -- exactly  */
-  /* the raw pattern with "Pairs" -> "PairsDet"). The histograms inside are      */
-  /* named only from the particle-filter names, so raw and Det would collide in  */
-  /* a flat file; we keep them apart by writing the Det pass to its own output   */
-  /* file Histograms<NN>Sub_<tag>_Det.root (det is set from the opt argument).   */
-  TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("Pairs%sFDRej%s", det ? "Det" : "", feeddownrej.c_str()).Data());
+  /* the pairs taskname; the detector-effects passes live in parallel           */
+  /* directories whose task names carry a "DetCorr" / "Det" infix (the launcher  */
+  /* names those analyzers Format(conf->taskname, "Pairs<infix>FDRej<fd>")).     */
+  /* The histograms inside are named only from the particle-filter names, so the */
+  /* three passes would collide in a flat file; we keep them apart by writing    */
+  /* each pass to its own output file (passInfix is set from the opt argument).  */
+  TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("Pairs%sFDRej%s", passInfix, feeddownrej.c_str()).Data());
   TwoPartDiffCorrelationAnalyzer<r, options>* eventanalyzer = new TwoPartDiffCorrelationAnalyzer<r, options>(taskName.Data(), ac, event, eventFilter, particleFilters);
 
   if (!TString(opt).Contains("verb"))
@@ -360,13 +359,18 @@ int main(int argc, char* argv[])
   int ixPtRange = stoi(argv[4]);
   int ixef = stoi(argv[5]);
 
-  /* Detector-effects (reconstructed) pass selector. The decision is taken at   */
-  /* the shell level: the stats chain submits two sequential SLURM jobs -- the  */
-  /* raw one (opt without "det") and, afterany it finishes, the reconstructed   */
-  /* one (opt containing "det"). When det is true this run targets the parallel */
-  /* PairsDet* directories and writes its own Histograms<NN>Sub_<tag>_Det.root  */
-  /* so the raw output file is left byte-for-byte unchanged.                    */
-  bool det = TString(opt).Contains("det");
+  /* Pass selector. The decision is taken at the shell level: the stats chain   */
+  /* submits up to three sequential SLURM jobs -- the raw one (opt without a    */
+  /* pass token), the detector-effects corrected one (opt contains "detcorr")   */
+  /* and the uncorrected one (opt contains "det"). "detcorr" is tested first    */
+  /* because it also contains the substring "det". Each pass targets the        */
+  /* matching Pairs<infix>* directories and writes its own sibling output file  */
+  /* Histograms<NN>Sub_<tag>[_DetCorr|_Det].root, leaving the others untouched. */
+  const char* passInfix = "";
+  if (TString(opt).Contains("detcorr"))
+    passInfix = "DetCorr";
+  else if (TString(opt).Contains("det"))
+    passInfix = "Det";
 
   TTimeStamp now = TTimeStamp();
   if (!TString(opt).Contains("verb"))
@@ -449,12 +453,13 @@ int main(int argc, char* argv[])
     return ac;
   };
 
-  /* One invocation == one pass. The raw pass (det=false) writes the unchanged  */
-  /* Histograms<NN>Sub_<tag>.root; the reconstructed pass (det=true, requested  */
-  /* by the shell via the "det" token in opt) targets the parallel PairsDet*   */
-  /* directories and writes the sibling Histograms<NN>Sub_<tag>_Det.root with   */
-  /* the same histogram names, leaving the raw file untouched.                  */
-  TFile* outputfile = new TFile(TString::Format("Histograms%02dSub_%s%s.root", nsamples, prodtag.c_str(), det ? "_Det" : ""), "UPDATE");
+  /* One invocation == one pass. The raw pass (no pass token) writes the         */
+  /* unchanged Histograms<NN>Sub_<tag>.root; the detector-effects corrected and  */
+  /* uncorrected passes (selected by the "detcorr" / "det" token in opt) target  */
+  /* the parallel PairsDetCorr* / PairsDet* directories and write the sibling     */
+  /* Histograms<NN>Sub_<tag>_DetCorr.root / _Det.root with the same histogram    */
+  /* names, leaving the other output files untouched.                            */
+  TFile* outputfile = new TFile(TString::Format("Histograms%02dSub_%s%s%s.root", nsamples, prodtag.c_str(), passInfix[0] ? "_" : "", passInfix), "UPDATE");
   char* ctitle = new char[64];
   auto getCentMultNames = [ctitle](auto const& evfltr) {
     if (evfltr == "MB") {
@@ -488,9 +493,9 @@ int main(int argc, char* argv[])
       Warning("statUncertain", "Processing sample %d for centrality %s", isamp, ctitle);
       TList* list;
       if (conf->inrapidity) {
-        list = extractSampleResults<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp, det);
+        list = extractSampleResults<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp, passInfix);
       } else {
-        list = extractSampleResults<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp, det);
+        list = extractSampleResults<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(opt, conf, samplefile, ac, ixrap, ixPtRange, ef, isamp, passInfix);
       }
 
       for (Int_t ilst = 0; ilst < nmainlists; ++ilst) {

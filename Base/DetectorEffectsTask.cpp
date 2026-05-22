@@ -20,6 +20,7 @@ DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
                                             TaskConfiguration* configuration,
                                             Event* _srcEvent,
                                             Event* _dstEvent,
+                                            Event* _dstUncorrEvent,
                                             const std::vector<std::string>& _trackNames,
                                             const std::vector<TH1*>& _effHistos,
                                             double _dEta,
@@ -30,6 +31,7 @@ DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
   : Task(name, configuration, _srcEvent),
     srcEvent(_srcEvent),
     dstEvent(_dstEvent),
+    dstUncorrEvent(_dstUncorrEvent),
     trackNames(_trackNames),
     effHistos(_effHistos),
     dEta(_dEta),
@@ -38,7 +40,7 @@ DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
     mergeMode(_mergeMode),
     rng(new TRandom3(rngSeed))
 {
-  if (!srcEvent || !dstEvent) {
+  if (!srcEvent || !dstEvent || !dstUncorrEvent) {
     if (reportError())
       cout << "DetectorEffectsTask::CTOR(...) src or dst Event is a null pointer." << endl;
     postTaskError();
@@ -114,7 +116,7 @@ bool DetectorEffectsTask<r>::tooClose(double etaA, double phiA, double ptA,
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
 void DetectorEffectsTask<r>::execute()
 {
-  if (!srcEvent || !dstEvent) {
+  if (!srcEvent || !dstEvent || !dstUncorrEvent) {
     if (reportError())
       cout << "DetectorEffectsTask::execute() src or dst Event is null. Abort." << endl;
     postTaskError();
@@ -206,6 +208,28 @@ void DetectorEffectsTask<r>::execute()
     dstEvent->setNParticlesAccepted(w);
     nKept = w;
   }
+
+  /* ============================================================ */
+  /* Stage 3: replicate the reconstructed set into the uncorrected */
+  /* (Det) event -- same particles, detector effects applied, but  */
+  /* with the efficiency-correction weight reset to 1.0 so the     */
+  /* parallel "Det" analyzers see the raw detector response.       */
+  /* ============================================================ */
+  dstUncorrEvent->reset();
+  dstUncorrEvent->copyEventLevelInfoFrom(*srcEvent);
+  for (int i = 0; i < nKept; ++i) {
+    Particle* corr = dstEvent->getParticleAt(i);
+    Particle* unc = dstUncorrEvent->appendParticle();
+    if (unc == nullptr) {
+      if (reportError())
+        cout << "DetectorEffectsTask::execute() uncorrected event factory exhausted at i=" << i << endl;
+      postTaskError();
+      return;
+    }
+    *unc = *corr;
+    unc->weight = 1.0;
+  }
+  dstUncorrEvent->setNParticlesAccepted(nKept);
 
   if (reportDebug())
     cout << "DetectorEffectsTask::execute() nGen=" << nSrc << " nReco=" << nKept << endl;

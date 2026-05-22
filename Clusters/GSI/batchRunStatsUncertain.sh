@@ -52,18 +52,20 @@ read -ra CPTRANGEUPS_ARRAY <<< "$CPTRANGEUPS"
 EVENTFILTERS=(`sed -n '/"teventfilter"\s*:\s*\[\(.*\)\],/p' configuration.json | sed 's/\s*"teventfilter"\s*:\s*\[\(.*\)\],/\1/' | tr ',' ' '`)
 NEVENTFILTERS=${#EVENTFILTERS[@]}
 
-# Detector effects: when enabled in the configuration we additionally produce a
-# second, dependent set of results from the parallel reconstructed directories.
-# The decision is taken here, at the shell level: the raw chain is submitted
-# first and, once it has finished, the detector-effects chain runs afterany.
+# Detector effects: when enabled in the configuration we additionally produce
+# two dependent sets of results from the parallel reconstructed directories --
+# the corrected ("DetCorr") and the uncorrected ("Det") passes. The decision is
+# taken here, at the shell level: the raw chain is submitted first and, once it
+# has finished, the corrected chain runs afterany, then the uncorrected chain.
 if ! extract_json_bool "$CONFIGURATIONFILE" "detectoreffects" "DETECTOREFFECTS"; then
     echo "Failed to extract 'detectoreffects'" >&2
     exit 1
 fi
-# job modes: "" == raw pass (unchanged), "det" == detector-effects pass
+# job modes: "" == raw pass (unchanged), "detcorr" == detector-effects corrected,
+# "det" == detector-effects uncorrected
 MODES=("")
 if [ "$DETECTOREFFECTS" == "true" ]; then
-  MODES+=("det")
+  MODES+=("detcorr" "det")
 fi
 
 # the results production tag
@@ -78,11 +80,17 @@ do
     PRODUCTIONTAG=`printf "%s_Rap%03d_Pt%02d%02d" ${PRODUCTIONTIME} ${CRAPIDITIES_ARRAY[i]} ${CPTRANGELOWS_ARRAY[iPtRange]} ${CPTRANGEUPS_ARRAY[iPtRange]}`
     echo Submitting for production tag ${PRODUCTIONTAG}
     JOBID=
-    # raw first, then (if enabled) the detector-effects pass; the JOBID chain
-    # continues across modes so the first "det" job waits afterany the whole
-    # raw chain of this rapidity / pT range has finished
+    # raw first, then (if enabled) the detector-effects corrected and
+    # uncorrected passes; the JOBID chain continues across modes so each new
+    # chain waits afterany the previous chain of this rapidity / pT range
     for MODE in "${MODES[@]}"
     do
+      # human-readable tag for job / log names and the submission echo
+      case "${MODE}" in
+        "")        MODETAG="";        MODEDESC="" ;;
+        "detcorr") MODETAG="DetCorr"; MODEDESC="detector-effects corrected " ;;
+        "det")     MODETAG="Det";     MODEDESC="detector-effects uncorrected " ;;
+      esac
       for (( j=0; j<NEVENTFILTERS; j++ ))
       do
         if [ -z "${JOBID}" ]
@@ -91,8 +99,8 @@ do
         else
           DEPENDENCY="-d afterany:${JOBID}"
         fi
-        echo Submitting ${MODE:+detector-effects }multiplicity class ${EVENTFILTERS[j]}
-        JOBNAME=`printf "waitStatsUncertain%s_%03d_%02d_%03d" "${MODE:+Det}" ${i} ${iPtRange} ${j}`
+        echo Submitting ${MODEDESC}multiplicity class ${EVENTFILTERS[j]}
+        JOBNAME=`printf "waitStatsUncertain%s_%03d_%02d_%03d" "${MODETAG}" ${i} ${iPtRange} ${j}`
         cmd="sbatch -J ${JOBNAME} ${DEPENDENCY} --chdir=${BASEDIRECTORY}/${PRODUCTIONDIRECTORY} --mem-per-cpu=8000 --time=07:00:00 -o ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.out -e ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/merge/${JOBNAME}Job.err /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runScriptInSingularity.sh /lustre/alice/users/${USER}/CLUSTERMODELWAC/Clusters/GSI/runStatsUncertain.sh ${WHICHGEN} ${PRODUCTIONTAG} ${i} ${iPtRange} ${j} ${MODE}"
         JOBID=($(eval $cmd | tee /dev/tty | awk '{print $4}'))
         echo $cmd >> ${BASEDIRECTORY}/${PRODUCTIONDIRECTORY}/log/submit.log

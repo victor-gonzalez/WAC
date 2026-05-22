@@ -15,8 +15,8 @@ PRODUCTIONTAG=$2
 IXRAP=$3
 IXPTRANGE=$4
 IXEVTFLT=$5
-# optional statUncertain option token; "det" selects the detector-effects
-# (reconstructed) pass, empty selects the raw pass (unchanged behaviour)
+# optional statUncertain option token; "detcorr" selects the detector-effects
+# corrected pass, "det" the uncorrected pass, empty the raw pass (unchanged)
 OPT=${6:-}
 
 # no more core files
