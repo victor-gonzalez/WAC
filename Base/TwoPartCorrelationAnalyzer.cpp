@@ -212,11 +212,6 @@ void TwoPartCorrelationAnalyzer<r>::saveHistograms(TDirectory* dir)
     return;
   }
 
-  /* now save the event histograms */
-  if (reportDebug())
-    cout << "TwoPartCorrelationAnalyzer::saveHistograms(...) saving event histograms." << endl;
-  event->saveHistograms(dir);
-
   if (reportDebug())
     cout << "TwoPartCorrelationAnalyzer::saveHistograms(...) saving singles." << endl;
 

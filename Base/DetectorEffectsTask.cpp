@@ -9,6 +9,7 @@
  **********************************************************************/
 
 #include <vector>
+#include "TFile.h"
 #include "TMath.h"
 #include "DetectorEffectsTask.hpp"
 #include "Particle.hpp"
@@ -18,7 +19,7 @@ templateClassImp(DetectorEffectsTask);
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
 DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
                                             TaskConfiguration* configuration,
-                                            Event* _srcEvent,
+                                            Event* _event,
                                             Event* _dstEvent,
                                             Event* _dstUncorrEvent,
                                             const std::vector<std::string>& _trackNames,
@@ -28,8 +29,7 @@ DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
                                             double _dPt,
                                             long rngSeed,
                                             MergeHandling _mergeMode)
-  : Task(name, configuration, _srcEvent),
-    srcEvent(_srcEvent),
+  : Task(name, configuration, _event),
     dstEvent(_dstEvent),
     dstUncorrEvent(_dstUncorrEvent),
     trackNames(_trackNames),
@@ -38,11 +38,15 @@ DetectorEffectsTask<r>::DetectorEffectsTask(const TString& name,
     dPhi(_dPhi),
     dPt(_dPt),
     mergeMode(_mergeMode),
-    rng(new TRandom3(rngSeed))
+    rng(new TRandom3(rngSeed)),
+    hEvtCount_vs_nSrc(nullptr),
+    hNAfterEffSum_vs_nSrc(nullptr),
+    hNDropMergeSum_vs_nSrc(nullptr),
+    profFracMerged_vs_nSrc(nullptr)
 {
-  if (!srcEvent || !dstEvent || !dstUncorrEvent) {
+  if (!event) {
     if (reportError())
-      cout << "DetectorEffectsTask::CTOR(...) src or dst Event is a null pointer." << endl;
+      cout << "DetectorEffectsTask::CTOR(...) src Event is a null pointer." << endl;
     postTaskError();
   }
   if (effHistos.size() != trackNames.size()) {
@@ -68,6 +72,39 @@ template <AnalysisConfiguration::RapidityPseudoRapidity r>
 DetectorEffectsTask<r>::~DetectorEffectsTask()
 {
   delete rng;
+  /* the QA histograms are not registered with any TDirectory (we call    */
+  /* SetDirectory(0) at allocation), so they are owned exclusively by us. */
+  delete hEvtCount_vs_nSrc;
+  delete hNAfterEffSum_vs_nSrc;
+  delete hNDropMergeSum_vs_nSrc;
+  delete profFracMerged_vs_nSrc;
+}
+
+/// \brief Allocate the QA histograms
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+void DetectorEffectsTask<r>::createHistograms()
+{
+  const int    nbins = 300;
+  const double xlo   = 0.0;
+  const double xhi   = 3000.0; /* generous upper edge -- Pythia pp events sit well below */
+
+  const TString base = getName();
+  hEvtCount_vs_nSrc = new TH1F(base + "_hEvtCount_vs_nSrc",
+                               "events vs n_{src};n_{src};events",
+                               nbins, xlo, xhi);
+  hEvtCount_vs_nSrc->SetDirectory(0);
+  hNAfterEffSum_vs_nSrc = new TProfile(base + "_hNAfterEffSum_vs_nSrc",
+                                       "#Sigma n_{afterEff} vs n_{src};n_{src};#Sigma n_{afterEff}",
+                                       nbins, xlo, xhi);
+  hNAfterEffSum_vs_nSrc->SetDirectory(0);
+  hNDropMergeSum_vs_nSrc = new TProfile(base + "_hNDropMergeSum_vs_nSrc",
+                                        "#Sigma n_{dropped by merging} vs n_{src};n_{src};#Sigma n_{drop}",
+                                        nbins, xlo, xhi);
+  hNDropMergeSum_vs_nSrc->SetDirectory(0);
+  profFracMerged_vs_nSrc = new TProfile(base + "_profFracMerged_vs_nSrc",
+                                        "fraction merged vs n_{src};n_{src};#LT n_{drop}/n_{afterEff} #GT",
+                                        nbins, xlo, xhi);
+  profFracMerged_vs_nSrc->SetDirectory(0);
 }
 
 /// \brief Look up the detection efficiency for a particle.
@@ -116,10 +153,15 @@ bool DetectorEffectsTask<r>::tooClose(double etaA, double phiA, double ptA,
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
 void DetectorEffectsTask<r>::execute()
 {
-  if (!srcEvent || !dstEvent || !dstUncorrEvent) {
+  if (!event) {
     if (reportError())
-      cout << "DetectorEffectsTask::execute() src or dst Event is null. Abort." << endl;
+      cout << "DetectorEffectsTask::execute() src event is null. Abort." << endl;
     postTaskError();
+    return;
+  }
+
+  if (dstEvent == nullptr) {
+    /* nothing to do */
     return;
   }
 
@@ -127,7 +169,7 @@ void DetectorEffectsTask<r>::execute()
   /* class from the raw event (so EventFilter::accept and the analyzers'     */
   /* fillEventWiseInfo see consistent values)                                */
   dstEvent->reset();
-  dstEvent->copyEventLevelInfoFrom(*srcEvent);
+  dstEvent->copyEventLevelInfoFrom(*event);
 
   /* ============================================================ */
   /* Stage 1: per-particle detection efficiency                   */
@@ -141,10 +183,10 @@ void DetectorEffectsTask<r>::execute()
   /* (ixID < 0) are kept unchanged with weight 1.0 so the         */
   /* merging stage can still see them.                            */
   /* ============================================================ */
-  const int nSrc = int(srcEvent->getNParticles());
+  const int nSrc = int(event->getNParticles());
   int nKept = 0;
   for (int i = 0; i < nSrc; ++i) {
-    Particle* src = srcEvent->getParticleAt(i);
+    Particle* src = event->getParticleAt(i);
     if (src == nullptr)
       continue;
     const int taggingIxID = trackNames.empty() ? -1
@@ -167,9 +209,15 @@ void DetectorEffectsTask<r>::execute()
 
   /* expose the kept particles via getParticleAt so the merging stage can read them */
   dstEvent->setNParticlesAccepted(nKept);
+  const int nAfterEff = nKept; /* captured BEFORE the merging stage for QA */
 
   /* ============================================================ */
   /* Stage 2: track merging  (currently only kKeepLeading wired)  */
+  /*                                                              */
+  /* SAME-CHARGE gate: in a magnetic-field tracker opposite-charge */
+  /* tracks curve apart and stop sharing hits quickly, so the      */
+  /* merging channel is dominantly same-sign; opposite-sign close  */
+  /* pairs are skipped here.                                       */
   /* ============================================================ */
   if (mergeActive() && nKept > 1) {
     std::vector<bool> dead(nKept, false);
@@ -182,6 +230,8 @@ void DetectorEffectsTask<r>::execute()
         if (dead[j])
           continue;
         Particle& b = *dstEvent->getParticleAt(j);
+        if (a.charge != b.charge)
+          continue; /* opposite-charge close pairs do not merge in real trackers */
         if (!tooClose(a.eta, a.phi, a.pt, b.eta, b.phi, b.pt))
           continue;
         /* keep-leading-drop-other: the lower-pT track of the pair dies */
@@ -216,7 +266,7 @@ void DetectorEffectsTask<r>::execute()
   /* parallel "Det" analyzers see the raw detector response.       */
   /* ============================================================ */
   dstUncorrEvent->reset();
-  dstUncorrEvent->copyEventLevelInfoFrom(*srcEvent);
+  dstUncorrEvent->copyEventLevelInfoFrom(*event);
   for (int i = 0; i < nKept; ++i) {
     Particle* corr = dstEvent->getParticleAt(i);
     Particle* unc = dstUncorrEvent->appendParticle();
@@ -231,8 +281,57 @@ void DetectorEffectsTask<r>::execute()
   }
   dstUncorrEvent->setNParticlesAccepted(nKept);
 
+  /* ============================================================ */
+  /* QA fills (always on)                                          */
+  /* ============================================================ */
+  const int nDropMerge = nAfterEff - nKept;
+  if (hEvtCount_vs_nSrc != nullptr) {
+    hEvtCount_vs_nSrc->Fill(nSrc);
+    hNAfterEffSum_vs_nSrc->Fill(nSrc, nAfterEff);
+    hNDropMergeSum_vs_nSrc->Fill(nSrc, nDropMerge);
+    if (nAfterEff > 0)
+      profFracMerged_vs_nSrc->Fill(nSrc, double(nDropMerge) / double(nAfterEff));
+  }
+
   if (reportDebug())
-    cout << "DetectorEffectsTask::execute() nGen=" << nSrc << " nReco=" << nKept << endl;
+    cout << "DetectorEffectsTask::execute() nGen=" << nSrc
+         << " nAfterEff=" << nAfterEff
+         << " nReco=" << nKept << endl;
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r>
+void DetectorEffectsTask<r>::saveHistograms(TDirectory* dir)
+{
+  if (reportDebug())
+    cout << "DetectorEffectsTask::saveHistograms(...) Saving Event histograms to file." << endl;
+  if (!dir) {
+    if (reportError())
+      cout << "DetectorEffectsTask::saveHistograms(...) output directory is a null  pointer." << endl;
+    postTaskError();
+    return;
+  }
+  dir->cd();
+
+  /* now save the event histograms */
+  if (reportDebug())
+    cout << "TwoPartDiffCorrelationAnalyzer::saveHistograms(...) saving event histograms." << endl;
+  event->saveHistograms(dir);
+
+  /* now save the detector effect histograms */
+  if (reportDebug())
+    cout << "DetectorEffectsTask::saveHistograms(...) saving event histograms." << endl;
+
+  if (hEvtCount_vs_nSrc == nullptr) {
+    if (reportError())
+      cout << "DetectorEffectsTask::finalize() QA histograms not allocated; nothing to write." << endl;
+    return;
+  }
+
+  dir->cd();
+  hEvtCount_vs_nSrc->Write();
+  hNAfterEffSum_vs_nSrc->Write();
+  hNDropMergeSum_vs_nSrc->Write();
+  profFracMerged_vs_nSrc->Write();
 }
 
 template class DetectorEffectsTask<AnalysisConfiguration::kRapidity>;

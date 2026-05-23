@@ -263,20 +263,20 @@ int main(int argc, char* argv[])
 
   Task* generator;
   Task* detTask = nullptr;
-  /* throwaway minimal configuration for the DetectorEffectsTask: all lifecycle flags */
-  /* are false so Task::initialize / reset / finalize do nothing (the task produces   */
-  /* no output of its own; the reconstructed Event is consumed by parallel analyzers).*/
   AnalysisConfiguration* detTaskCfg = nullptr;
   if (conf->detectoreffects) {
     detTaskCfg = new AnalysisConfiguration("DETEFF", "DETEFF", "1.0");
     detTaskCfg->loadHistograms = false;
-    detTaskCfg->createHistograms = false;
+    detTaskCfg->createHistograms = true;
     detTaskCfg->scaleHistograms = false;
     detTaskCfg->calculateDerivedHistograms = false;
-    detTaskCfg->saveHistograms = false;
+    detTaskCfg->saveHistograms = true;
     detTaskCfg->resetHistograms = false;
     detTaskCfg->clearHistograms = false;
     detTaskCfg->forceHistogramsRewrite = false;
+    detTaskCfg->outputPath = "Output/";
+    detTaskCfg->rootOuputFileName = TString::Format("%s_%03d", TString::Format(conf->outputfname.c_str(), int(abs_y[0] * 10), int(ptRangeLows[0] * 10), int(ptRangeUps[0] * 10)).Data(), jobix).Data();
+    detTaskCfg->outputDirectory = "CommonHistograms";
   }
   /* particle selection at the generator level */
   if (conf->gparticlefilter == "All" && conf->gchargefilter == "All") {
@@ -287,11 +287,9 @@ int main(int argc, char* argv[])
                                                                                                                                  genMinPt, genMaxPt,
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
-      if (conf->detectoreffects) {
-        detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
-                                                                            conf->tpairs, effHistos,
-                                                                            conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
-      }
+      detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
+                                                                          conf->tpairs, effHistos,
+                                                                          conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
     } else {
       ParticleFilter<AnalysisConfiguration::kPseudorapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kPseudorapidity>(ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllSpecies,
                                                                                                                                              ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllCharges,
@@ -299,11 +297,9 @@ int main(int argc, char* argv[])
                                                                                                                                              genMinPt, genMaxPt,
                                                                                                                                              -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kPseudorapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
-      if (conf->detectoreffects) {
-        detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
-                                                                                  conf->tpairs, effHistos,
-                                                                                  conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
-      }
+      detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
+                                                                                conf->tpairs, effHistos,
+                                                                                conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
     }
   } else {
     Error("main", "Launcher still not prepared for configuring different particles generation. Please, fix it!!");

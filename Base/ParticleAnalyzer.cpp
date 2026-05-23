@@ -142,11 +142,6 @@ void ParticleAnalyzer<r>::saveHistograms(TDirectory* dir)
   /* first save the number of events as a cumulated parameter */
   TParameter<Long64_t>("NoOfEvents", eventsProcessed, '+').Write();
 
-  /* now save the event histograms */
-  if (reportDebug())
-    cout << "PartAnalyzer::saveHistograms(...) saving event histograms." << endl;
-  event->saveHistograms(dir);
-
   for (int iFilter = 0; iFilter < nParticleFilters; iFilter++) {
     particleHistos[iFilter]->saveHistograms(dir);
   }

@@ -306,11 +306,6 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::saveHistograms(TDirectory* di
     return;
   }
 
-  /* now save the event histograms */
-  if (reportDebug())
-    cout << "TwoPartDiffCorrelationAnalyzerME::saveHistograms(...) saving singles." << endl;
-  event->saveHistograms(dir);
-
   if (reportDebug())
     cout << "TwoPartDiffCorrelationAnalyzer::saveHistograms(...) saving singles." << endl;
 
