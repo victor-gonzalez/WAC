@@ -48,6 +48,7 @@ class TwoPartDiffCorrelationAnalyzer : public Task
   virtual void addHistogramsToExtList(TList* list, bool all = false);
   virtual void scaleHistograms(double factor);
   virtual void calculateDerivedHistograms();
+  virtual void storePtAverageHistograms(std::vector<TH2*> pTAvgHistos);
 
   //////////////////////////////////////////////////////////////
   // Data Members
@@ -58,6 +59,7 @@ class TwoPartDiffCorrelationAnalyzer : public Task
 
   std::vector<TString> partNames;
   std::vector<int> nAccepted;
+  std::vector<TH2*> pTAverageHistos;
   std::vector<std::vector<int>>nAcceptedPairs;
 
   EventHistos* event_Histos;

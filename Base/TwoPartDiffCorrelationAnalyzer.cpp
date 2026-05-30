@@ -70,6 +70,35 @@ TwoPartDiffCorrelationAnalyzer<r, options>::TwoPartDiffCorrelationAnalyzer(const
   }
 }
 
+template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
+void TwoPartDiffCorrelationAnalyzer<r, options>::storePtAverageHistograms(std::vector<TH2*> pTAvgHistos)
+{
+  if (reportDebug())
+    cout << "TwoPartDiffCorrelationAnalyzer::storePtAverageHistograms(...)" << endl;
+
+  if (pTAvgHistos.size() != partNames.size()) {
+    if (reportError())
+      cout << "TwoPartDiffCorrelationAnalyzer::storePtAverageHistograms(...) number of pT average histograms mismatch." << endl;
+    postTaskError();
+    return;
+  }
+
+  pTAverageHistos.reserve(pTAvgHistos.size());
+  for (auto pH : pTAvgHistos) {
+    pTAverageHistos.push_back(pH);
+  }
+
+  /* check everything is correct */
+  for (unsigned int i = 0; i < partNames.size(); ++i) {
+    if (!TString(pTAverageHistos[i]->GetName()).Contains(partNames[i])) {
+      if (reportError())
+        cout << "TwoPartDiffCorrelationAnalyzer::storePtAverageHistograms(...) index " << i << " mismatch: " << pTAverageHistos[i]->GetName() << " vs " << partNames[i] << endl;
+      postTaskError();
+      return;
+    }
+  }
+}
+
 //////////////////////////////////////////////////////////////
 // DTOR
 //////////////////////////////////////////////////////////////
@@ -420,7 +449,7 @@ void TwoPartDiffCorrelationAnalyzer<r, options>::execute()
         if (ixID2 < 0)
           continue;
 
-        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight);
+        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight, pTAverageHistos[ixID1], pTAverageHistos[ixID2]);
         nAcceptedPairs[ixID1][ixID2] += 1;
       }
     }
