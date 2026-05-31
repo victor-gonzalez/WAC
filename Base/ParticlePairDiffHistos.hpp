@@ -382,7 +382,7 @@ void ParticlePairDiffHistos::fill(ParticleType1& particle1, ParticleType2& parti
     p_n2_DetaDphi->Fill(deltayeta, deltaphi, weight1 * weight2);
     h_n2_DetaDphi->AddBinContent(globalyetabinno, weight1 * weight2);
     h_ptpt_DetaDphi->AddBinContent(globalyetabinno, weight1 * particle1.pt * weight2 * particle2.pt);
-    h_dptdpt_DetaDphi->AddBinContent(globalyetabinno, (weight1 * particle1.pt - pTavg1) * (weight2 * particle2.pt - pTavg2));
+    h_dptdpt_DetaDphi->AddBinContent(globalyetabinno, (particle1.pt - pTavg1) * (particle2.pt - pTavg2) * weight1 * weight2);
     h_n2_DetaDphi->SetEntries(h_n2_ptPt->GetEntries());
     h_ptpt_DetaDphi->SetEntries(h_n2_ptPt->GetEntries());
     h_dptdpt_DetaDphi->SetEntries(h_n2_ptPt->GetEntries());
