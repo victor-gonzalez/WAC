@@ -57,6 +57,16 @@ void PythiaEventGenerator<r>::initialize()
   initializeToConsiderResonances();
   pythia8 = new TPythia8();
 
+  // Get the global TDatabasePDG instance
+  TDatabasePDG* pdgDb = TDatabasePDG::Instance();
+
+  // 1. Add Deuteron
+  // Arguments: name, title, mass (GeV), stable, decay width, charge (3*e), class, pdgCode, antiCode, trackingCode
+  pdgDb->AddParticle("Deuteron", "Deuteron", 1.875613, true, 0.0, 3.0, "Ion", 1000010020, -1000010020, 45);
+
+  // 2. Add Anti-deuteron
+  pdgDb->AddParticle("AntiDeuteron", "AntiDeuteron", 1.875613, true, 0.0, -3.0, "Ion", -1000010020, 1000010020, 0);
+
   PythiaConfiguration* pc = (PythiaConfiguration*)getTaskConfiguration();
   for (int iOption = 0; iOption < pc->nOptions; iOption++) {
     pythia8->ReadString(pc->options[iOption]->Data());
@@ -175,15 +185,18 @@ void PythiaEventGenerator<r>::execute()
 
   // load particles from TClone storage and copy into event.
   Particle aParticle;
-  // if (reportDebug()) cout << "PythiaEventGenerator::execute() starting copy loop into event..." << endl;
+  if (reportDebug())
+    cout << "PythiaEventGenerator::execute() starting copy loop into event..." << endl;
 
   for (int iParticle = 0; iParticle < nparts; iParticle++) {
     TParticle& part = *(TParticle*)particles->At(iParticle);
     int ist = part.GetStatusCode();
-    // if (reportDebug()) cout << "PythiaEventGenerator::execute() ist: " << ist << endl;
     if (ist <= 0)
       continue;
     int pdg = part.GetPdgCode();
+    if (reportDebug()) {
+      cout << "PythiaEventGenerator::execute() ist: " << ist << ", pdg: " << pdg << endl;
+    }
     charge = TDatabasePDG::Instance()->GetParticle(pdg)->Charge();
     p_x = cosPhi * part.Px() - sinPhi * part.Py();
     p_y = sinPhi * part.Px() + cosPhi * part.Py();

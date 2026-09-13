@@ -79,6 +79,9 @@ TString ParticleFilter<r>::getName()
     case ALambda:
       name = "ALa";
       break;
+    case Deuteron:
+      name = "De";
+      break;
   }
 
   if (pidRequested == Photon)
@@ -151,6 +154,9 @@ TString ParticleFilter<r>::getTitle()
       break;
     case ALambda:
       name = "ALambda";
+      break;
+    case Deuteron:
+      name = "Deuteron";
       break;
   }
 

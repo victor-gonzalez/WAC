@@ -47,7 +47,8 @@ class ParticleFilter
                           Baryon,
                           Proton,
                           Lambda,
-                          ALambda };
+                          ALambda,
+                          Deuteron };
   enum FeedDownRejection { None,
                            AllResonances };
 
@@ -141,7 +142,7 @@ inline bool ParticleFilter<r>::accept(Particle& particle)
   }
   if (!accepting)
     return false;
-  double pid = TMath::Abs(particle.pid);
+  long pid = TMath::Abs(particle.pid);
   switch (pidRequested) {
     case AllSpecies:
       accepting = true;
@@ -181,6 +182,9 @@ inline bool ParticleFilter<r>::accept(Particle& particle)
       break;
     case ALambda:
       accepting = (particle.pid == -3122);
+      break;
+    case Deuteron:
+      accepting = (pid == 1000010020);
       break;
   }
 
@@ -262,7 +266,7 @@ inline bool ParticleFilter<r>::acceptIdentity(Particle& particle)
   }
   if (!accepting)
     return false;
-  double pid = TMath::Abs(particle.pid);
+  long pid = TMath::Abs(particle.pid);
   switch (pidRequested) {
     case AllSpecies:
       return true;
@@ -290,6 +294,8 @@ inline bool ParticleFilter<r>::acceptIdentity(Particle& particle)
       return (particle.pid == 3122);
     case ALambda:
       return (particle.pid == -3122);
+    case Deuteron:
+      return (pid == 1000010020);
   }
   return false;
 }
@@ -318,6 +324,8 @@ inline typename ParticleFilter<r>::SpeciesSelection ParticleFilter<r>::speciesFo
     return Photon;
   if (name == "AllP" || name == "AllM" || name == "AllC" || name == "All0" || name == "AllA")
     return AllSpecies;
+  if (name == "DeP" || name == "DeM" || name == "DeA")
+    return Deuteron;
   ::Fatal("ParticleFilter::speciesFor", "Particle species '%s' not supported. Please fix the analysis configuration.", name.c_str());
   return AllSpecies;
 }
@@ -325,15 +333,15 @@ inline typename ParticleFilter<r>::SpeciesSelection ParticleFilter<r>::speciesFo
 template <AnalysisConfiguration::RapidityPseudoRapidity r>
 inline typename ParticleFilter<r>::ChargeSelection ParticleFilter<r>::chargeFor(const std::string& name)
 {
-  if (name == "PiP" || name == "KaP" || name == "PrP" || name == "AllP")
+  if (name == "PiP" || name == "KaP" || name == "PrP" || name == "DeP" || name == "AllP")
     return Positive;
-  if (name == "PiM" || name == "KaM" || name == "PrM" || name == "AllM")
+  if (name == "PiM" || name == "KaM" || name == "PrM" || name == "DeM" || name == "AllM")
     return Negative;
   if (name == "PiC" || name == "KaC" || name == "PrC" || name == "AllC")
     return Charged;
   if (name == "Pi0" || name == "Ka0" || name == "All0" || name == "La" || name == "ALa" || name == "Gam")
     return Neutral;
-  if (name == "PiA" || name == "KaA" || name == "PrA" || name == "AllA")
+  if (name == "PiA" || name == "KaA" || name == "PrA" || name == "DeA" || name == "AllA")
     return AllCharges;
   ::Fatal("ParticleFilter::chargeFor", "Particle species '%s' not supported. Please fix the analysis configuration.", name.c_str());
   return AllCharges;
@@ -366,7 +374,7 @@ inline bool ParticleFilter<r>::acceptIdentity(const std::string& trackName, Part
   if (!chargeOk)
     return false;
   const SpeciesSelection species = speciesFor(trackName);
-  const double pid = TMath::Abs(particle.pid);
+  const long pid = TMath::Abs(particle.pid);
   switch (species) {
     case AllSpecies: return true;
     case Photon:     return (pid == 22);
@@ -381,6 +389,8 @@ inline bool ParticleFilter<r>::acceptIdentity(const std::string& trackName, Part
     case Proton:     return (pid == 2212);
     case Lambda:     return (particle.pid ==  3122);
     case ALambda:    return (particle.pid == -3122);
+    case Deuteron:
+      return (pid == 1000010020);
   }
   return false;
 }
