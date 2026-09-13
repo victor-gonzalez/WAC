@@ -37,7 +37,8 @@ bool configureTasks(std::string efd,
                     EventFilter* eventFilter,
                     Event* event,
                     Event* recoEvent,
-                    Event* uncorrEvent)
+                    Event* uncorrEvent,
+                    std::vector<TH2*> pTAvgHistos)
 {
   /* for having the balance function correctly extracted the particle filters have to follow certain order */
   /* - charged particle should come always first                                                           */
@@ -57,7 +58,9 @@ bool configureTasks(std::string efd,
   TString taskName = TString::Format(conf->taskname.c_str(), TString::Format("PairsFDRej%s", efd.c_str()).Data());
 
   /* the two-particle mixed-event analyzer (raw pass) */
-  analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(taskName, ac, event, eventFilter, particleFilters);
+  auto newTask = new TwoPartDiffCorrelationAnalyzerME<r, options>(taskName, ac, event, eventFilter, particleFilters);
+  newTask->storePtAverageHistograms(pTAvgHistos);
+  analysisTasks[iTask++] = newTask;
 
   /* single particle analysis filters and task if any (raw pass) */
   if (conf->tsingles.size() > 0) {
@@ -91,7 +94,9 @@ bool configureTasks(std::string efd,
       passFilters.push_back(filter);
     }
     TString passTaskName = TString::Format(conf->taskname.c_str(), TString::Format("Pairs%sFDRej%s", infix, efd.c_str()).Data());
-    analysisTasks[iTask++] = new TwoPartDiffCorrelationAnalyzerME<r, options>(passTaskName, ac, passEvent, eventFilter, passFilters);
+    newTask = new TwoPartDiffCorrelationAnalyzerME<r, options>(passTaskName, ac, passEvent, eventFilter, passFilters);
+    newTask->storePtAverageHistograms(pTAvgHistos);
+    analysisTasks[iTask++] = newTask;
 
     if (conf->tsingles.size() > 0) {
       int nPassSingleFilters = 0;
@@ -190,6 +195,30 @@ int main(int argc, char* argv[])
   /* for particles tagged with ixID == i (i.e. accepted by tpairFilters[i]).   */
   /* Missing entries (nullptr) => eff=1 for that index (silent fallback).      */
   std::vector<TH1*> effHistos;
+  effHistos.assign(conf->tpairs.size(), nullptr);
+
+  /* the pT average default histograms */
+  auto zeroHistogram = [&](auto name) {
+    float rapMin = -*std::max_element(abs_y.begin(), abs_y.end());
+    float rapMax = -rapMin;
+    int nRapBins = int((rapMax - rapMin) / 0.1);
+    float phiMin = 0.0;
+    float phiMax = kTWOPI;
+    int nPhiBins = 72;
+
+    TH2* h = new TH2F(name, name, nRapBins, rapMin, rapMax, nPhiBins, phiMin, phiMax);
+    return h;
+  };
+  std::vector<std::vector<TH2*>> pTAvgHistos;
+  pTAvgHistos.assign(conf->teventfilter.size(), {conf->tpairs.size(), nullptr});
+  for (unsigned int i = 0; i < conf->teventfilter.size(); ++i) {
+    for (unsigned int j = 0; j < conf->tpairs.size(); ++j) {
+      std::string hname = "ptavgetaphi_" + conf->teventfilter[i] + "_" + conf->tpairs[j];
+      pTAvgHistos[i][j] = zeroHistogram(hname.c_str());
+    }
+  }
+
+  /* get and sotore the information from the input file */
   if (!conf->inputfile.empty()) {
     TFile* f = new TFile(conf->inputfile.c_str());
     if (f != nullptr && f->IsOpen()) {
@@ -198,7 +227,6 @@ int main(int argc, char* argv[])
       event->setMultiplicityPercentiles(f);
       /* load `<tpairs[i]>Efficiency` for each tpairs entry; missing -> nullptr */
       if (conf->detectoreffects) {
-        effHistos.assign(conf->tpairs.size(), nullptr);
         for (size_t i = 0; i < conf->tpairs.size(); ++i) {
           std::string hname = conf->tpairs[i] + "Efficiency";
           TObject* o = f->Get(hname.c_str());
@@ -206,9 +234,24 @@ int main(int argc, char* argv[])
             Warning("RunPythiaSimulationTwoParticlesDiffME",
                     "efficiency histogram '%s' not found in %s -- eff=1 for tpairs[%zu]=%s",
                     hname.c_str(), conf->inputfile.c_str(), i, conf->tpairs[i].c_str());
+            /* already initialized to nullptr */
             continue;
           }
           effHistos[i] = (TH1*)o->Clone(); /* detached: survives f->Close() */
+        }
+      }
+      /* load pT average information if present */
+      for (unsigned int i = 0; i < conf->teventfilter.size(); ++i) {
+        for (unsigned int j = 0; j < conf->tpairs.size(); ++j) {
+          std::string hname = "ptavgetaphi_" + conf->teventfilter[i] + "_" + conf->tpairs[j];
+          TObject* o = f->Get(hname.c_str());
+          if (o == nullptr) {
+            Warning("RunPythiaSimulationTwoParticlesDiff",
+                    "pT average histogram %s not found in file %s", hname.c_str(), conf->inputfile.c_str());
+            /* already initialized to zero */
+          } else {
+            pTAvgHistos[i][j] = reinterpret_cast<TH2*>(o->Clone());
+          }
         }
       }
       f->Close();
@@ -224,10 +267,6 @@ int main(int argc, char* argv[])
   }
   /* create the parallel reconstructed Events used by the detector-effects passes */
   if (conf->detectoreffects) {
-    if (effHistos.empty()) {
-      /* no input file or no histos loaded; keep effHistos sized to tpairs (all nullptr) */
-      effHistos.assign(conf->tpairs.size(), nullptr);
-    }
     recoEvent = Event::createReconstructed();
     uncorrEvent = Event::createReconstructed();
   }
@@ -264,20 +303,20 @@ int main(int argc, char* argv[])
 
   Task* generator;
   Task* detTask = nullptr;
-  /* throwaway minimal configuration for the DetectorEffectsTask: all lifecycle flags */
-  /* are false so Task::initialize / reset / finalize do nothing (the task produces   */
-  /* no output of its own; the reconstructed Event is consumed by parallel analyzers).*/
   AnalysisConfiguration* detTaskCfg = nullptr;
   if (conf->detectoreffects) {
     detTaskCfg = new AnalysisConfiguration("DETEFF", "DETEFF", "1.0");
     detTaskCfg->loadHistograms = false;
-    detTaskCfg->createHistograms = false;
+    detTaskCfg->createHistograms = true;
     detTaskCfg->scaleHistograms = false;
     detTaskCfg->calculateDerivedHistograms = false;
-    detTaskCfg->saveHistograms = false;
+    detTaskCfg->saveHistograms = true;
     detTaskCfg->resetHistograms = false;
     detTaskCfg->clearHistograms = false;
     detTaskCfg->forceHistogramsRewrite = false;
+    detTaskCfg->outputPath = "Output/";
+    detTaskCfg->rootOuputFileName = TString::Format("%s_%03d", TString::Format(conf->outputfname.c_str(), int(abs_y[0] * 10), int(ptRangeLows[0] * 10), int(ptRangeUps[0] * 10)).Data(), jobix).Data();
+    detTaskCfg->outputDirectory = "CommonHistograms";
   }
   /* particle selection at the generator level */
   if (conf->gparticlefilter == "All" && conf->gchargefilter == "All") {
@@ -326,7 +365,6 @@ int main(int argc, char* argv[])
     int nBins_y = int((max_y - min_y) / 0.1);
 
     for (uint iPtRange = 0; iPtRange < ptRangeLows.size(); ++iPtRange) {
-
       AnalysisConfiguration* ac = new AnalysisConfiguration("PYTHIA", "PYTHIA", "1.0");
       ac->loadHistograms = false;
       ac->createHistograms = true;
@@ -368,7 +406,8 @@ int main(int argc, char* argv[])
       }
 
       /* event selection at the analysis task level */
-      for (auto& ef : conf->teventfilter) {
+      for (unsigned int i = 0; i < conf->teventfilter.size(); ++i) {
+        auto& ef = conf->teventfilter[i];
         EventFilter* eventFilter = nullptr;
         if (ef == "MB") {
           eventFilter = new EventFilter(EventFilter::MinBias, 0, 0);
@@ -388,21 +427,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+              if (!configureTasks<AnalysisConfiguration::kRapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                 return 0;
               }
             }
@@ -410,21 +449,21 @@ int main(int argc, char* argv[])
             if (conf->fillpratt || conf->fillinvmass) {
               if (conf->fillinvmass) {
                 if (conf->fillpratt) {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPrattAndInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                     return 0;
                   }
                 } else {
-                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                  if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillInvariantMass>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                     return 0;
                   }
                 }
               } else {
-                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+                if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kFillPratt>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                   return 0;
                 }
               }
             } else {
-              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent)) {
+              if (!configureTasks<AnalysisConfiguration::kPseudorapidity, AnalysisConfiguration::kNoAdditionalOptions>(fd, conf, ac, eventFilter, event, recoEvent, uncorrEvent, pTAvgHistos[i])) {
                 return 0;
               }
             }

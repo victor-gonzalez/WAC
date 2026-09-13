@@ -194,7 +194,28 @@ int main(int argc, char* argv[])
   /* for particles tagged with ixID == i (i.e. accepted by tpairFilters[i]).   */
   /* Missing entries (nullptr) => eff=1 for that index (silent fallback).      */
   std::vector<TH1*> effHistos;
+  effHistos.assign(conf->tpairs.size(), nullptr);
+
+  /* the pT average default histograms */
+  auto zeroHistogram = [&](auto name) {
+    float rapMin = -*std::max_element(abs_y.begin(), abs_y.end());
+    float rapMax = -rapMin;
+    int nRapBins = int((rapMax - rapMin) / 0.1);
+    float phiMin = 0.0;
+    float phiMax = kTWOPI;
+    int nPhiBins = 72;
+
+    TH2* h = new TH2F(name, name, nRapBins, rapMin, rapMax, nPhiBins, phiMin, phiMax);
+    return h;
+  };
   std::vector<std::vector<TH2*>> pTAvgHistos;
+  pTAvgHistos.assign(conf->teventfilter.size(), {conf->tpairs.size(), nullptr});
+  for (unsigned int i = 0; i < conf->teventfilter.size(); ++i) {
+    for (unsigned int j = 0; j < conf->tpairs.size(); ++j) {
+      std::string hname = "ptavgetaphi_" + conf->teventfilter[i] + "_" + conf->tpairs[j];
+      pTAvgHistos[i][j] = zeroHistogram(hname.c_str());
+    }
+  }
 
   /* get and sotore the information from the input file */
   if (!conf->inputfile.empty()) {
@@ -205,7 +226,6 @@ int main(int argc, char* argv[])
       event->setMultiplicityPercentiles(f);
       /* load `<tpairs[i]>Efficiency` for each tpairs entry; missing -> nullptr */
       if (conf->detectoreffects) {
-        effHistos.assign(conf->tpairs.size(), nullptr);
         for (size_t i = 0; i < conf->tpairs.size(); ++i) {
           std::string hname = conf->tpairs[i] + "Efficiency";
           TObject* o = f->Get(hname.c_str());
@@ -213,25 +233,13 @@ int main(int argc, char* argv[])
             Warning("RunPythiaSimulationTwoParticlesDiff",
                     "efficiency histogram '%s' not found in %s -- eff=1 for tpairs[%zu]=%s",
                     hname.c_str(), conf->inputfile.c_str(), i, conf->tpairs[i].c_str());
+            /* already initialized to nullptr */
             continue;
           }
           effHistos[i] = (TH1*)o->Clone(); /* detached: survives f->Close() */
         }
       }
       /* load pT average information if present */
-      auto zeroHistogram = [&](auto name) {
-        float rapMin = -*std::max_element(abs_y.begin(), abs_y.end());
-        float rapMax = -rapMin;
-        int nRapBins = int((rapMax - rapMin) / 0.1);
-        float phiMin = 0.0;
-        float phiMax = kTWOPI;
-        int nPhiBins = 72;
-
-        TH2* h = new TH2F(name, name, nRapBins, rapMin, rapMax, nPhiBins, phiMin, phiMax);
-        return h;
-      };
-
-      pTAvgHistos.assign(conf->teventfilter.size(), {conf->tpairs.size(), nullptr});
       for (unsigned int i = 0; i < conf->teventfilter.size(); ++i) {
         for (unsigned int j = 0; j < conf->tpairs.size(); ++j) {
           std::string hname = "ptavgetaphi_" + conf->teventfilter[i] + "_" + conf->tpairs[j];
@@ -239,7 +247,7 @@ int main(int argc, char* argv[])
           if (o == nullptr) {
             Warning("RunPythiaSimulationTwoParticlesDiff",
                     "pT average histogram %s not found in file %s", hname.c_str(), conf->inputfile.c_str());
-            pTAvgHistos[i][j] = zeroHistogram(hname.c_str());
+            /* already initialized to zero */
           } else {
             pTAvgHistos[i][j] = reinterpret_cast<TH2*>(o->Clone());
           }
@@ -258,10 +266,6 @@ int main(int argc, char* argv[])
   }
   /* create the parallel reconstructed Events used by the detector-effects passes */
   if (conf->detectoreffects) {
-    if (effHistos.empty()) {
-      /* no input file or no histos loaded; keep effHistos sized to tpairs (all nullptr) */
-      effHistos.assign(conf->tpairs.size(), nullptr);
-    }
     recoEvent = Event::createReconstructed();
     uncorrEvent = Event::createReconstructed();
   }

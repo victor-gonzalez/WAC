@@ -28,7 +28,7 @@ TwoPartDiffCorrelationAnalyzerME<r, options>::TwoPartDiffCorrelationAnalyzerME(c
     eventFilter(ef),
     eventPool(EVENTPOOLSIZE, PARTICLESPEREVENT),
     particleFilters(particleFilters),
-    nAccepted(particleFilters.size()),
+    nAccepted(particleFilters.size(), 0),
     nAcceptedPairs{particleFilters.size(), std::vector<int>(particleFilters.size(), 0)},
     event_Histos(nullptr),
     particle_Histos{particleFilters.size(), nullptr},
@@ -72,6 +72,35 @@ TwoPartDiffCorrelationAnalyzerME<r, options>::TwoPartDiffCorrelationAnalyzerME(c
   for (uint i = 0; i < uint(particleFilters.size() / 2); ++i) {
     pairs_BFHistos.push_back(std::vector<ParticlePairBalanceFunctionDiffHistos*>(uint(particleFilters.size() / 2), nullptr));
     pairs_BFHistos_me.push_back(std::vector<ParticlePairBalanceFunctionDiffHistos*>(uint(particleFilters.size() / 2), nullptr));
+  }
+}
+
+template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
+void TwoPartDiffCorrelationAnalyzerME<r, options>::storePtAverageHistograms(std::vector<TH2*> pTAvgHistos)
+{
+  if (reportDebug())
+    cout << "TwoPartDiffCorrelationAnalyzerME::storePtAverageHistograms(...)" << endl;
+
+  if (pTAvgHistos.size() != partNames.size()) {
+    if (reportError())
+      cout << "TwoPartDiffCorrelationAnalyzerME::storePtAverageHistograms(...) number of pT average histograms mismatch." << endl;
+    postTaskError();
+    return;
+  }
+
+  pTAverageHistos.reserve(pTAvgHistos.size());
+  for (auto pH : pTAvgHistos) {
+    pTAverageHistos.push_back(pH);
+  }
+
+  /* check everything is correct */
+  for (unsigned int i = 0; i < partNames.size(); ++i) {
+    if (!TString(pTAverageHistos[i]->GetName()).Contains(partNames[i])) {
+      if (reportError())
+        cout << "TwoPartDiffCorrelationAnalyzerME::storePtAverageHistograms(...) index " << i << " mismatch: " << pTAverageHistos[i]->GetName() << " vs " << partNames[i] << endl;
+      postTaskError();
+      return;
+    }
   }
 }
 
@@ -446,7 +475,8 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
       }
       continue;
     }
-    /* per-particle weight: 1.0 for the raw pass, 1/eff(pT) for the detector-effects pass */
+    /* the per-particle weight defaults to 1.0 for the raw (generated) pass; the */
+    /* detector-effects pass populates it with 1/eff(pT) on a parallel Event     */
     particle_Histos[ixID]->fill<r>(*particle, particle->weight);
     nAccepted[ixID] += 1;
     /* store it in the event pool assigned factory (MiniParticle copies weight from Particle) */
@@ -473,7 +503,7 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
         if (ixID2 < 0)
           continue;
 
-        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight);
+        pairs_Histos[ixID1][ixID2]->fill<r, options>(particle1, particle2, particle1.weight, particle2.weight, pTAverageHistos[ixID1], pTAverageHistos[ixID2]);
         nAcceptedPairs[ixID1][ixID2] += 1;
       }
       /* fill the mixed event histograms if pool full */
@@ -483,8 +513,8 @@ void TwoPartDiffCorrelationAnalyzerME<r, options>::execute()
         while ((mixevt = eventPool.getNextIndex(ixevt)) != nullptr) {
           for (int iMiniParticle = 0; iMiniParticle < mixevt->getCurrentSize(); ++iMiniParticle) {
             MiniParticle& miniParticle = *mixevt->getObjectAt(iMiniParticle);
-            pairs_Histos_me[ixID1][miniParticle.ixID]->fill<r, options>(particle1, miniParticle, particle1.weight, miniParticle.weight);
-            pairs_Histos_me[miniParticle.ixID][ixID1]->fill<r, options>(miniParticle, particle1, miniParticle.weight, particle1.weight);
+            pairs_Histos_me[ixID1][miniParticle.ixID]->fill<r, options>(particle1, miniParticle, particle1.weight, miniParticle.weight, pTAverageHistos[ixID1], pTAverageHistos[miniParticle.ixID]);
+            pairs_Histos_me[miniParticle.ixID][ixID1]->fill<r, options>(miniParticle, particle1, miniParticle.weight, particle1.weight, pTAverageHistos[miniParticle.ixID], pTAverageHistos[ixID1]);
           }
         }
       }

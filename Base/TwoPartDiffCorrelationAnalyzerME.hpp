@@ -28,7 +28,7 @@
 #define EVENTPOOLSIZE 10
 #define PARTICLESPEREVENT 2000
 
-template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions>
+template <AnalysisConfiguration::RapidityPseudoRapidity r, AnalysisConfiguration::FillPairOptions options>
 class TwoPartDiffCorrelationAnalyzerME : public Task
 {
  public:
@@ -49,6 +49,7 @@ class TwoPartDiffCorrelationAnalyzerME : public Task
   virtual void addHistogramsToExtList(TList* list, bool all = false);
   virtual void scaleHistograms(double factor);
   virtual void calculateDerivedHistograms();
+  virtual void storePtAverageHistograms(std::vector<TH2*> pTAvgHistos);
 
   //////////////////////////////////////////////////////////////
   // Data Members
@@ -60,11 +61,13 @@ class TwoPartDiffCorrelationAnalyzerME : public Task
 
   std::vector<TString> partNames;
   std::vector<int> nAccepted;
+  std::vector<TH2*> pTAverageHistos;
   std::vector<std::vector<int>>nAcceptedPairs;
 
   EventHistos* event_Histos;
   std::vector<ParticleHistos*> particle_Histos;
   std::vector<std::vector<ParticlePairDerivedDiffHistos*>> pairs_Histos;
+
   std::vector<std::vector<ParticlePairCombinedDiffHistos*>> pairs_CIHistos;
   std::vector<std::vector<ParticlePairCombinedDiffHistos*>> pairs_CDHistos;
   std::vector<std::vector<ParticlePairBalanceFunctionDiffHistos*>> pairs_BFHistos;
@@ -74,7 +77,7 @@ class TwoPartDiffCorrelationAnalyzerME : public Task
   std::vector<std::vector<ParticlePairCombinedDiffHistos*>> pairs_CDHistos_me;
   std::vector<std::vector<ParticlePairBalanceFunctionDiffHistos*>> pairs_BFHistos_me;
 
-  ClassDef(TwoPartDiffCorrelationAnalyzerME, 4)
+  ClassDef(TwoPartDiffCorrelationAnalyzerME, 5)
 };
 
 #endif /* TwoPartDiffCorrelationAnalyzerME_hpp */
