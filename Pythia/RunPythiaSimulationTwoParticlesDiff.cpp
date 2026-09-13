@@ -322,9 +322,11 @@ int main(int argc, char* argv[])
                                                                                                                                  genMinPt, genMaxPt,
                                                                                                                                  -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kRapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
-      detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
-                                                                          conf->tpairs, effHistos,
-                                                                          conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      if (conf->detectoreffects) {
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kRapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
+                                                                            conf->tpairs, effHistos,
+                                                                            conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      }
     } else {
       ParticleFilter<AnalysisConfiguration::kPseudorapidity>* particleFilterGen = new ParticleFilter<AnalysisConfiguration::kPseudorapidity>(ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllSpecies,
                                                                                                                                              ParticleFilter<AnalysisConfiguration::kPseudorapidity>::AllCharges,
@@ -332,9 +334,11 @@ int main(int argc, char* argv[])
                                                                                                                                              genMinPt, genMaxPt,
                                                                                                                                              -abs_y[0], abs_y[0]);
       generator = new PythiaEventGenerator<AnalysisConfiguration::kPseudorapidity>("PYTHIA", pc, event, eventFilterGen, particleFilterGen);
-      detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
-                                                                                conf->tpairs, effHistos,
-                                                                                conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      if (conf->detectoreffects) {
+        detTask = new DetectorEffectsTask<AnalysisConfiguration::kPseudorapidity>("DETEFFECTS", detTaskCfg, event, recoEvent, uncorrEvent,
+                                                                                  conf->tpairs, effHistos,
+                                                                                  conf->mergedeta, conf->mergedphi, conf->mergedpt, seed);
+      }
     }
   } else {
     Error("main", "Launcher still not prepared for configuring different particles generation. Please, fix it!!");
